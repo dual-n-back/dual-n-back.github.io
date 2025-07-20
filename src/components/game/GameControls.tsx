@@ -26,8 +26,8 @@ import {
   Grid4x4Sharp,
 } from '@mui/icons-material'
 import { ResponseType } from '../../types/game'
-import { useGame } from '../../contexts/GameContext'
-import { useStats } from '../../contexts/StatsContext'
+import { useGame } from '../../hooks/useGame'
+import { useStats } from '../../hooks/useStats'
 import { generateSessionId } from '../../utils/gameLogic'
 
 const GameControls: React.FC = () => {
@@ -63,7 +63,8 @@ const GameControls: React.FC = () => {
       }
       addGameSession(session)
     }
-  }, [state.gamePhase, state.gameEndTime]) // Only depend on the completion trigger
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.gamePhase, state.gameEndTime]) // Only depend on completion trigger
 
   const canStart = !state.isPlaying
 

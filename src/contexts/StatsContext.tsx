@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react'
+import React, { createContext, useReducer, useCallback, useEffect } from 'react'
 import { Statistics, GameSession, Achievement } from '../types/game'
 
 interface StatsContextType {
@@ -194,6 +194,8 @@ const statsReducer = (state: Statistics, action: StatsAction): Statistics => {
 
 const StatsContext = createContext<StatsContextType | undefined>(undefined)
 
+export { StatsContext }
+
 export const StatsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [stats, dispatch] = useReducer(statsReducer, initialStats)
   const [achievements, setAchievements] = React.useState<Achievement[]>(defaultAchievements)
@@ -307,12 +309,4 @@ export const StatsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }
 
   return <StatsContext.Provider value={value}>{children}</StatsContext.Provider>
-}
-
-export const useStats = () => {
-  const context = useContext(StatsContext)
-  if (context === undefined) {
-    throw new Error('useStats must be used within a StatsProvider')
-  }
-  return context
 }

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react'
+import React, { createContext, useReducer, useCallback, useEffect } from 'react'
 import { GameState, GameSettings, GameSequence, ResponseType } from '../types/game'
 import { generateGameSequence } from '../utils/gameLogic'
 
@@ -264,6 +264,8 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
 
 const GameContext = createContext<GameContextType | undefined>(undefined)
 
+export { GameContext }
+
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(gameReducer, initialState)
   const [settings, setSettings] = React.useState<GameSettings>(defaultSettings)
@@ -358,7 +360,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (nBackIndex >= 0 && state.waitingForResponse) {
        dispatch({ type: 'SUBMIT_RESPONSE', payload: { type: responseType } })
     }
-  }, [state.waitingForResponse, state.sequence, state.currentStimulusIndex, state.nLevel])
+  }, [state.waitingForResponse, state.currentStimulusIndex, state.nLevel])
 
   const updateSettings = useCallback((newSettings: Partial<GameSettings>) => {
     setSettings(prev => ({ ...prev, ...newSettings }))
@@ -383,12 +385,4 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>
-}
-
-export const useGame = () => {
-  const context = useContext(GameContext)
-  if (context === undefined) {
-    throw new Error('useGame must be used within a GameProvider')
-  }
-  return context
 }

@@ -29,8 +29,8 @@ import {
   DeleteForever as ClearIcon,
   Science as TestIcon,
 } from '@mui/icons-material'
-import { useGame } from '../../contexts/GameContext'
-import { useStats } from '../../contexts/StatsContext'
+import { useGame } from '../../hooks/useGame'
+import { useStats } from '../../hooks/useStats'
 import { testAudio, preloadAudio } from '../../utils/audioManager'
 
 const Settings: React.FC = () => {

@@ -9,7 +9,7 @@ import {
   alpha,
   useTheme,
 } from '@mui/material'
-import { useGame } from '../../contexts/GameContext'
+import { useGame } from '../../hooks/useGame'
 import { playAudioTone } from '../../utils/audioManager'
 import { indexToRowCol } from '../../utils/gameLogic'
 

@@ -24,7 +24,7 @@ import {
   Psychology as BrainIcon,
   Whatshot as StreakIcon,
 } from '@mui/icons-material'
-import { useStats } from '../../contexts/StatsContext'
+import { useStats } from '../../hooks/useStats'
 import { formatDuration, formatPercentage, getDifficultyLevel } from '../../utils/gameLogic'
 
 const StatsPanel: React.FC = () => {
