@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react'
-import { GameState, GameSettings, GameSequence } from '../types/game'
+import { GameState, GameSettings, GameSequence, ResponseType } from '../types/game'
 import { generateGameSequence } from '../utils/gameLogic'
 
 interface GameContextType {
@@ -10,7 +10,7 @@ interface GameContextType {
   pauseGame: () => void
   resumeGame: () => void
   stopGame: () => void
-  submitResponse: (position: boolean | null, audio: boolean | null) => void
+  submitResponse: (type: ResponseType) => void
   updateSettings: (newSettings: Partial<GameSettings>) => void
   resetGame: () => void
 }
@@ -23,46 +23,48 @@ type GameAction =
   | { type: 'NEXT_STIMULUS' }
   | { type: 'PRESENT_STIMULUS'; payload: { index: number } }
   | { type: 'WAIT_FOR_RESPONSE' }
-  | { type: 'SUBMIT_RESPONSE'; payload: { position: boolean | null; audio: boolean | null } }
+  | { type: 'SUBMIT_RESPONSE'; payload: { type?: ResponseType } }
   | { type: 'UPDATE_SETTINGS'; payload: Partial<GameSettings> }
   | { type: 'RESET_GAME' }
   | { type: 'SET_SEQUENCE'; payload: GameSequence[] }
   | { type: 'END_GAME' }
 
 const defaultSettings: GameSettings = {
-  nLevel: 2,
+  nLevel: 1,
   totalRounds: 20,
   showVisual: true,
   showAudio: true,
   stimulusDuration: 500,
   interstimulusInterval: 2500,
   gridSize: 3,
-  audioType: 'tones',
+  audioType: 'letters',
   volume: 0.5,
   autoAdvance: true,
 }
 
 const initialState: GameState = {
-  isPlaying: false,
-  isPaused: false,
-  currentRound: 0,
-  totalRounds: defaultSettings.totalRounds,
-  nLevel: defaultSettings.nLevel,
-  sequence: [],
-  currentStimulusIndex: -1,
-  gamePhase: 'waiting',
-  waitingForResponse: false,
-  responseDeadline: null,
-  score: {
-    positionCorrect: 0,
-    positionIncorrect: 0,
-    audioCorrect: 0,
-    audioIncorrect: 0,
-    totalCorrect: 0,
-    totalIncorrect: 0,
-  },
-  gameStartTime: null,
-  gameEndTime: null,
+    isPlaying: false,
+    isPaused: false,
+    currentRound: 0,
+    totalRounds: defaultSettings.totalRounds,
+    nLevel: defaultSettings.nLevel,
+    sequence: [],
+    currentStimulusIndex: -1,
+    gamePhase: 'waiting',
+    waitingForResponse: false,
+    responseDeadline: null,
+    responses: [],
+    score: {
+        positionCorrect: 0,
+        positionIncorrect: 0,
+        audioCorrect: 0,
+        audioIncorrect: 0,
+        totalCorrect: 0,
+        totalIncorrect: 0,
+    },
+    gameStartTime: null,
+    gameEndTime: null,
+    feedback: {}
 }
 
 const gameReducer = (state: GameState, action: GameAction): GameState => {
@@ -79,6 +81,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         responseDeadline: null,
         gameStartTime: Date.now(),
         gameEndTime: null,
+        responses: [],
         score: {
           positionCorrect: 0,
           positionIncorrect: 0,
@@ -143,6 +146,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         gamePhase: 'response',
         waitingForResponse: true,
         responseDeadline: Date.now() + 3000, // 3 second response window
+        feedback: {}, // Reset feedback for new stimulus
       }
     }
 
@@ -168,7 +172,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
     }
 
     case 'SUBMIT_RESPONSE': {
-      const { position, audio } = action.payload
+      const { type } = action.payload
       const currentSequence = state.sequence[state.currentStimulusIndex]
       const nBackIndex = state.currentStimulusIndex - state.nLevel
       
@@ -176,15 +180,17 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
       let positionIncorrect = state.score.positionIncorrect
       let audioCorrect = state.score.audioCorrect
       let audioIncorrect = state.score.audioIncorrect
+      const newResponses = [...state.responses]
+      let correct = false
 
       // Only check if we're past the N-back threshold
       if (nBackIndex >= 0) {
         const nBackSequence = state.sequence[nBackIndex]
         
         // Check position response
-        if (position !== null) {
-          const shouldMatch = nBackSequence.position === currentSequence.position
-          if ((position && shouldMatch) || (!position && !shouldMatch)) {
+        if (type === 'position') {
+        correct = nBackSequence.position === currentSequence.position
+          if (correct) {
             positionCorrect++
           } else {
             positionIncorrect++
@@ -192,18 +198,27 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         }
 
         // Check audio response
-        if (audio !== null) {
-          const shouldMatch = nBackSequence.audio === currentSequence.audio
-          if ((audio && shouldMatch) || (!audio && !shouldMatch)) {
+        if (type === 'audio') {
+          correct = nBackSequence.audio === currentSequence.audio
+          if (correct) {
             audioCorrect++
           } else {
             audioIncorrect++
           }
+          
+          // Create UserResponse record for audio
         }
+        newResponses.push({
+            type,
+            responseTime: state.responseDeadline ? Date.now() - (state.responseDeadline - 3000) : 0,
+            roundIndex: state.currentRound,
+            correct,
+          })
       }
 
       return {
         ...state,
+        responses: newResponses,
         score: {
           positionCorrect,
           positionIncorrect,
@@ -215,6 +230,10 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         waitingForResponse: false,
         gamePhase: 'feedback',
         responseDeadline: null,
+        feedback: {
+            position: type === 'position' ? correct : undefined,
+            audio: type === 'audio' ? correct : undefined,
+        }
       }
     }
 
@@ -269,7 +288,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Wait for response or timeout
       timer = setTimeout(() => {
         // No response given, treat as no match for both modalities
-        dispatch({ type: 'SUBMIT_RESPONSE', payload: { position: false, audio: false } })
+        dispatch({ type: 'SUBMIT_RESPONSE', payload: {} })
       }, 3000) // 3 second response window
     } else if (state.gamePhase === 'feedback') {
       // Brief pause before next stimulus
@@ -295,18 +314,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         case 'a': // Left arrow or A key for position match
         case 'arrowleft':
           if (settings.showVisual) {
-            dispatch({ type: 'SUBMIT_RESPONSE', payload: { position: true, audio: null } })
+            dispatch({ type: 'SUBMIT_RESPONSE', payload: { type: 'position' } })
           }
           break
         case 'l': // Right arrow or L key for audio match  
         case 'arrowright':
           if (settings.showAudio) {
-            dispatch({ type: 'SUBMIT_RESPONSE', payload: { position: null, audio: true } })
+            dispatch({ type: 'SUBMIT_RESPONSE', payload: { type: 'audio' } })
           }
           break
         case ' ': // Spacebar for no match
         case 'n':
-          dispatch({ type: 'SUBMIT_RESPONSE', payload: { position: false, audio: false } })
+          dispatch({ type: 'SUBMIT_RESPONSE', payload: {} })
           break
       }
     }
@@ -333,10 +352,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: 'STOP_GAME' })
   }, [])
 
-  const submitResponse = useCallback((position: boolean | null, audio: boolean | null) => {
-    if (!state.waitingForResponse) return
-    dispatch({ type: 'SUBMIT_RESPONSE', payload: { position, audio } })
-  }, [state.waitingForResponse])
+  const submitResponse = useCallback((responseType: ResponseType) => {
+    const nBackIndex = state.currentStimulusIndex - state.nLevel
+    
+    if (nBackIndex >= 0 && state.waitingForResponse) {
+       dispatch({ type: 'SUBMIT_RESPONSE', payload: { type: responseType } })
+    }
+  }, [state.waitingForResponse, state.sequence, state.currentStimulusIndex, state.nLevel])
 
   const updateSettings = useCallback((newSettings: Partial<GameSettings>) => {
     setSettings(prev => ({ ...prev, ...newSettings }))

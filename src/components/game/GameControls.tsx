@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Box,
   Paper,
@@ -22,13 +22,13 @@ import {
 } from '@mui/material'
 import {
   PlayArrow as PlayIcon,
-  Pause as PauseIcon,
-  Stop as StopIcon,
+
   Refresh as ResetIcon,
   Settings as SettingsIcon,
   VolumeUp as VolumeUpIcon,
   Grid4x4Sharp,
 } from '@mui/icons-material'
+import { ResponseType } from '../../types/game'
 import { useGame } from '../../contexts/GameContext'
 import { useStats } from '../../contexts/StatsContext'
 import { generateSessionId } from '../../utils/gameLogic'
@@ -36,32 +36,23 @@ import { generateSessionId } from '../../utils/gameLogic'
 const GameControls: React.FC = () => {
   const { state, settings, startGame, pauseGame, resumeGame, stopGame, resetGame, updateSettings, submitResponse } = useGame()
   const { addGameSession } = useStats()
-  const theme = useTheme()
+
   
   const [showQuickSettings, setShowQuickSettings] = useState(false)
-  const [lastResponse, setLastResponse] = useState<{ positionCorrect: boolean | null; audioCorrect: boolean | null }>({
-    positionCorrect: null,
-    audioCorrect: null,
-  })
+  const [feedbackTimeout, setFeedbackTimeout] = useState<number | null>(null)
 
-  const handlePositionMatch = () => {
-    if (state.gamePhase === 'response') {
-      const isCorrect = true; // Replace with actual correctness logic
-      setLastResponse((prev) => ({ ...prev, positionCorrect: isCorrect }));
-      submitResponse(isCorrect, null)
-    }
+  const getButtonColor = (type: ResponseType) => {
+    const feedbackState = state.feedback[type];
+    if (feedbackState === undefined) return 'darkgrey';
+    return feedbackState ? 'green' : 'red';
   }
 
-  const handleAudioMatch = () => {
-    if (state.gamePhase === 'response') {
-      const isCorrect = true; // Replace with actual correctness logic
-      setLastResponse((prev) => ({ ...prev, audioCorrect: isCorrect }));
-      submitResponse(null, isCorrect)
-    }
-  }
+  const handlePositionMatch = () => submitResponse('position')
+  const handleAudioMatch = () => submitResponse('audio')
 
-  const handleGameComplete = useCallback(() => {
-    if (state.gameStartTime && state.gameEndTime) {
+  // Handle game completion
+  useEffect(() => {
+    if (state.gamePhase === 'completed' && state.gameEndTime) {
       const session = {
         id: generateSessionId(),
         date: Date.now(),
@@ -69,21 +60,23 @@ const GameControls: React.FC = () => {
         totalRounds: state.currentRound,
         completedRounds: state.currentRound,
         score: state.score,
-        duration: state.gameEndTime - state.gameStartTime,
+        duration: state.gameStartTime ? state.gameEndTime - state.gameStartTime : 0,
         settings,
-        responses: [], // This would be populated with actual response data
-        completed: state.gamePhase === 'completed',
+        responses: state.responses,
+        completed: true,
       }
       addGameSession(session)
     }
-  }, [state.gameStartTime, state.gameEndTime, state.nLevel, state.currentRound, state.score, state.gamePhase, settings, addGameSession])
+  }, [state.gamePhase, state.gameEndTime]) // Only depend on the completion trigger
 
-  // Handle game completion
+  // Cleanup timeout on unmount
   useEffect(() => {
-    if (state.gamePhase === 'completed' && state.gameEndTime) {
-      handleGameComplete()
+    return () => {
+      if (feedbackTimeout) {
+        clearTimeout(feedbackTimeout)
+      }
     }
-  }, [state.gamePhase, state.gameEndTime, handleGameComplete])
+  }, [feedbackTimeout])
 
   const canStart = !state.isPlaying
 
@@ -128,28 +121,20 @@ const GameControls: React.FC = () => {
           {state.isPlaying && (
             <Fade in={true}>
               <Box>
-                {/* Response Buttons - Always Visible */}
+                {/* Response Buttons*/}
                 <Box sx={{ display: 'flex', justifyContent: 'center', gap: 3, mb: 3 }}>
                   <Button
-                    onClick={() => {
-                      handlePositionMatch();
-                      setTimeout(() => {
-                        const button = document.getElementById('position-btn');
-                        if (button) {
-                          button.style.backgroundColor = lastResponse.positionCorrect ? 'green' : 'red';
-                        }
-                      }, 100);
-                    }}
+                    onClick={handlePositionMatch}
                     id="position-btn"
                     sx={{
-                      px: 6, // Matches padding of start and pause buttons
+                      px: 6,
                       py: 1.5,
                       fontSize: '1rem',
                       fontWeight: 600,
-                      backgroundColor: 'darkgrey',
+                      backgroundColor: getButtonColor('position'),
                       borderRadius: 2,
                       '&:hover': {
-                        backgroundColor: 'grey',
+                        backgroundColor: getButtonColor('position') === 'darkgrey' ? 'grey' : getButtonColor('position'),
                       },
                     }}
                   >
@@ -157,25 +142,17 @@ const GameControls: React.FC = () => {
                   </Button>
 
                   <Button
-                    onClick={() => {
-                      handleAudioMatch();
-                      setTimeout(() => {
-                        const button = document.getElementById('audio-btn');
-                        if (button) {
-                          button.style.backgroundColor = lastResponse.audioCorrect ? 'green' : 'red';
-                        }
-                      }, 100);
-                    }}
+                    onClick={handleAudioMatch}
                     id="audio-btn"
                     sx={{
                       px: 6, // Matches padding of start and pause buttons
                       py: 1.5,
                       fontSize: '1rem',
                       fontWeight: 600,
-                      backgroundColor: 'darkgrey',
+                      backgroundColor: getButtonColor('audio'),
                       borderRadius: 2,
                       '&:hover': {
-                        backgroundColor: 'grey',
+                        backgroundColor: getButtonColor('audio') === 'darkgrey' ? 'grey' : getButtonColor('audio'),
                       },
                     }}
                   >

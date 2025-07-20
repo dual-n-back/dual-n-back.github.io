@@ -9,6 +9,7 @@ export interface GameState {
   gamePhase: GamePhase
   waitingForResponse: boolean
   responseDeadline: number | null
+  responses: UserResponse[] // Track individual responses
   score: {
     positionCorrect: number
     positionIncorrect: number
@@ -18,7 +19,11 @@ export interface GameState {
     totalIncorrect: number
   }
   gameStartTime: number | null
-  gameEndTime: number | null
+  gameEndTime: number | null,
+  feedback: {
+    position?: boolean;
+    audio?: boolean;
+  };
 }
 
 export interface GameSequence {
@@ -35,16 +40,16 @@ export interface GameSettings {
   stimulusDuration: number // milliseconds
   interstimulusInterval: number // milliseconds
   gridSize: 3 | 4 | 5
-  audioType: 'tones' | 'letters' | 'numbers'
+  audioType: 'letters' | 'tones' | 'numbers'
   volume: number
   autoAdvance: boolean
 }
 
 export interface UserResponse {
-  position: boolean | null // true = match, false = no match, null = no response
-  audio: boolean | null
+  type?: ResponseType
   responseTime: number
   roundIndex: number
+  correct: boolean 
 }
 
 export interface GameSession {
@@ -89,6 +94,8 @@ export interface GridPosition {
 }
 
 export type GamePhase = 'waiting' | 'stimulus' | 'response' | 'feedback' | 'completed'
+
+export type ResponseType = 'position' | 'audio'
 
 export type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced' | 'expert'
 
