@@ -189,34 +189,7 @@ const GameBoard: React.FC = () => {
         </Paper>
 
         {/* Game Info */}
-        <Box sx={{ mt: 3, textAlign: 'center' }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            N-Level: {state.nLevel} | Round: {state.currentRound}
-          </Typography>
-          
-          {state.gamePhase === 'response' && (
-            <Fade in={true}>
-              <Typography variant="body2" color="primary" sx={{ fontWeight: 'medium' }}>
-                Use keyboard: A/← for position match, L/→ for audio match, Space/N for no match
-              </Typography>
-            </Fade>
-          )}
-          
-          {state.gamePhase === 'completed' && (
-            <Fade in={true}>
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="h6" color="primary" gutterBottom>
-                  Game Complete!
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Final Score: {state.score.totalCorrect + state.score.totalIncorrect > 0 
-                    ? Math.round((state.score.totalCorrect / (state.score.totalCorrect + state.score.totalIncorrect)) * 100)
-                    : 0}%
-                </Typography>
-              </Box>
-            </Fade>
-          )}
-        </Box>
+ 
       </Box>
     </Fade>
   )

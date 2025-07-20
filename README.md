@@ -32,7 +32,7 @@ Dual N-Back is a cognitive training task that challenges your working memory. Pl
 
 ### Play Online
 
-Visit [https://dual-n-back.github.io/dual-n-back.github.io/](https://dual-n-back.github.io/dual-n-back.github.io/) to start training immediately.
+Visit [https://dual-n-back.github.io/](https://dual-n-back.github.io/) to start training immediately.
 
 ### Local Development
 
@@ -215,7 +215,7 @@ This game is suitable for:
 
 Having issues? Check out:
 - [GitHub Issues](https://github.com/dual-n-back/dual-n-back.github.io/issues)
-- [Tutorial](https://dual-n-back.github.io/dual-n-back.github.io/#tutorial) in the app
+- [Tutorial](https://dual-n-back.github.io/#tutorial) in the app
 - [N-Back Wikipedia](https://en.wikipedia.org/wiki/N-back) for background information
 
 ---
