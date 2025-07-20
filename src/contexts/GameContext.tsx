@@ -113,7 +113,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         gameEndTime: Date.now(),
       }
 
-    case 'PRESENT_STIMULUS':
+    case 'PRESENT_STIMULUS': {
       const stimulusIndex = action.payload.index
       return {
         ...state,
@@ -122,8 +122,9 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         waitingForResponse: false,
         responseDeadline: null,
       }
+    }
 
-    case 'WAIT_FOR_RESPONSE':
+    case 'WAIT_FOR_RESPONSE': {
       // Only wait for response if we're past the N-back threshold
       const shouldWaitForResponse = state.currentStimulusIndex >= state.nLevel
       
@@ -143,8 +144,9 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         waitingForResponse: true,
         responseDeadline: Date.now() + 3000, // 3 second response window
       }
+    }
 
-    case 'NEXT_STIMULUS':
+    case 'NEXT_STIMULUS': {
       const nextIndex = state.currentStimulusIndex + 1
       if (nextIndex >= state.sequence.length) {
         return {
@@ -163,8 +165,9 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         waitingForResponse: false,
         responseDeadline: null,
       }
+    }
 
-    case 'SUBMIT_RESPONSE':
+    case 'SUBMIT_RESPONSE': {
       const { position, audio } = action.payload
       const currentSequence = state.sequence[state.currentStimulusIndex]
       const nBackIndex = state.currentStimulusIndex - state.nLevel
@@ -213,6 +216,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         gamePhase: 'feedback',
         responseDeadline: null,
       }
+    }
 
     case 'UPDATE_SETTINGS':
       return {

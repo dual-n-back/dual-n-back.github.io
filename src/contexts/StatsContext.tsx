@@ -176,9 +176,10 @@ const calculateStats = (sessions: GameSession[]): Statistics => {
 
 const statsReducer = (state: Statistics, action: StatsAction): Statistics => {
   switch (action.type) {
-    case 'ADD_SESSION':
+    case 'ADD_SESSION': {
       const newSessions = [...state.sessions, action.payload]
       return calculateStats(newSessions)
+    }
 
     case 'CLEAR_STATS':
       return initialStats

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Box,
   Paper,
@@ -58,7 +58,7 @@ const GameControls: React.FC = () => {
     }
   }
 
-  const handleGameComplete = () => {
+  const handleGameComplete = useCallback(() => {
     if (state.gameStartTime && state.gameEndTime) {
       const session = {
         id: generateSessionId(),
@@ -74,14 +74,14 @@ const GameControls: React.FC = () => {
       }
       addGameSession(session)
     }
-  }
+  }, [state.gameStartTime, state.gameEndTime, state.nLevel, state.currentRound, state.score, state.gamePhase, settings, addGameSession])
 
   // Handle game completion
   useEffect(() => {
     if (state.gamePhase === 'completed' && state.gameEndTime) {
       handleGameComplete()
     }
-  }, [state.gamePhase, state.gameEndTime])
+  }, [state.gamePhase, state.gameEndTime, handleGameComplete])
 
   const canStart = !state.isPlaying
   const canPause = state.isPlaying && !state.isPaused
