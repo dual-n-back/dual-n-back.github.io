@@ -4,7 +4,6 @@ import {
   Paper,
   Grid,
   Typography,
-  LinearProgress,
   Fade,
   Zoom,
   alpha,
@@ -96,27 +95,6 @@ const GameBoard: React.FC = () => {
       </Grid>
     )
   }, [activePosition, settings.gridSize, theme])
-
-  const progress = state.sequence.length > 0 
-    ? Math.min(100, ((state.currentStimulusIndex + 1) / state.sequence.length) * 100)
-    : 0
-
-  const getGamePhaseMessage = () => {
-    switch (state.gamePhase) {
-      case 'waiting':
-        return `Round ${state.currentRound} - Preparing next stimulus`
-      case 'stimulus':
-        return `Round ${state.currentRound} - Showing stimulus ${state.currentStimulusIndex + 1}`
-      case 'response':
-        return `Round ${state.currentRound} - Waiting for response`
-      case 'feedback':
-        return 'Processing response...'
-      case 'completed':
-        return 'Game completed!'
-      default:
-        return 'Ready to train your brain?'
-    }
-  }
 
   if (!state.isPlaying && state.currentRound === 0) {
     return (

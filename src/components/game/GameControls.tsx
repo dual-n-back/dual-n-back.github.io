@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import {
   Box,
-  Paper,
   Button,
   ButtonGroup,
   Typography,
@@ -12,8 +11,6 @@ import {
   Chip,
   IconButton,
   Tooltip,
-  useTheme,
-  alpha,
   Fade,
   Dialog,
   DialogTitle,
@@ -34,12 +31,11 @@ import { useStats } from '../../contexts/StatsContext'
 import { generateSessionId } from '../../utils/gameLogic'
 
 const GameControls: React.FC = () => {
-  const { state, settings, startGame, pauseGame, resumeGame, stopGame, resetGame, updateSettings, submitResponse } = useGame()
+  const { state, settings, startGame, resetGame, updateSettings, submitResponse } = useGame()
   const { addGameSession } = useStats()
 
   
   const [showQuickSettings, setShowQuickSettings] = useState(false)
-  const [feedbackTimeout, setFeedbackTimeout] = useState<number | null>(null)
 
   const getButtonColor = (type: ResponseType) => {
     const feedbackState = state.feedback[type];
@@ -68,15 +64,6 @@ const GameControls: React.FC = () => {
       addGameSession(session)
     }
   }, [state.gamePhase, state.gameEndTime]) // Only depend on the completion trigger
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (feedbackTimeout) {
-        clearTimeout(feedbackTimeout)
-      }
-    }
-  }, [feedbackTimeout])
 
   const canStart = !state.isPlaying
 
