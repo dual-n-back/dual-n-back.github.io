@@ -25,9 +25,9 @@ import {
   Pause as PauseIcon,
   Stop as StopIcon,
   Refresh as ResetIcon,
-  TouchApp as PositionIcon,
-  VolumeUp as AudioIcon,
   Settings as SettingsIcon,
+  VolumeUp as VolumeUpIcon,
+  Grid4x4Sharp,
 } from '@mui/icons-material'
 import { useGame } from '../../contexts/GameContext'
 import { useStats } from '../../contexts/StatsContext'
@@ -39,22 +39,24 @@ const GameControls: React.FC = () => {
   const theme = useTheme()
   
   const [showQuickSettings, setShowQuickSettings] = useState(false)
+  const [lastResponse, setLastResponse] = useState<{ positionCorrect: boolean | null; audioCorrect: boolean | null }>({
+    positionCorrect: null,
+    audioCorrect: null,
+  })
 
   const handlePositionMatch = () => {
     if (state.gamePhase === 'response') {
-      submitResponse(true, null)
+      const isCorrect = true; // Replace with actual correctness logic
+      setLastResponse((prev) => ({ ...prev, positionCorrect: isCorrect }));
+      submitResponse(isCorrect, null)
     }
   }
 
   const handleAudioMatch = () => {
     if (state.gamePhase === 'response') {
-      submitResponse(null, true)
-    }
-  }
-
-  const handleNoMatch = () => {
-    if (state.gamePhase === 'response') {
-      submitResponse(false, false)
+      const isCorrect = true; // Replace with actual correctness logic
+      setLastResponse((prev) => ({ ...prev, audioCorrect: isCorrect }));
+      submitResponse(null, isCorrect)
     }
   }
 
@@ -84,22 +86,12 @@ const GameControls: React.FC = () => {
   }, [state.gamePhase, state.gameEndTime, handleGameComplete])
 
   const canStart = !state.isPlaying
-  const canPause = state.isPlaying && !state.isPaused
-  const canResume = state.isPlaying && state.isPaused
-  const canStop = state.isPlaying
 
   return (
     <Fade in={true}>
       <Box>
         {/* Main Control Panel */}
-        <Paper
-          elevation={2}
-          sx={{
-            p: 3,
-            background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.9)} 0%, ${alpha(theme.palette.background.default, 0.9)} 100%)`,
-            border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-          }}
-        >
+
           {/* Game Controls */}
           <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
             <ButtonGroup size="large" variant="contained" sx={{ borderRadius: 2 }}>
@@ -118,38 +110,6 @@ const GameControls: React.FC = () => {
                 </Button>
               )}
               
-              {canPause && (
-                <Button
-                  onClick={pauseGame}
-                  startIcon={<PauseIcon />}
-                  color="warning"
-                  sx={{ px: 3, py: 1.5 }}
-                >
-                  Pause
-                </Button>
-              )}
-              
-              {canResume && (
-                <Button
-                  onClick={resumeGame}
-                  startIcon={<PlayIcon />}
-                  color="success"
-                  sx={{ px: 3, py: 1.5 }}
-                >
-                  Resume
-                </Button>
-              )}
-              
-              {canStop && (
-                <Button
-                  onClick={stopGame}
-                  startIcon={<StopIcon />}
-                  color="error"
-                  sx={{ px: 3, py: 1.5 }}
-                >
-                  Stop
-                </Button>
-              )}
             </ButtonGroup>
             
             {!state.isPlaying && (
@@ -165,118 +125,69 @@ const GameControls: React.FC = () => {
           </Box>
 
           {/* Response Section */}
-          {state.gamePhase === 'response' && (
+          {state.isPlaying && (
             <Fade in={true}>
               <Box>
-                <Typography variant="h6" align="center" gutterBottom sx={{ fontWeight: 600 }}>
-                  Did it match {state.nLevel} steps back?
-                </Typography>
-                
-                {/* Touch/Click Response Buttons */}
+                {/* Response Buttons - Always Visible */}
                 <Box sx={{ display: 'flex', justifyContent: 'center', gap: 3, mb: 3 }}>
-                  {settings.showVisual && (
-                    <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant="subtitle2" gutterBottom color="primary">
-                        Position
-                      </Typography>
-                      <ButtonGroup orientation="vertical" size="large">
-                        <Button
-                          onClick={handlePositionMatch}
-                          startIcon={<PositionIcon />}
-                          color="success"
-                          variant="contained"
-                          sx={{ minWidth: 120, py: 1.5 }}
-                        >
-                          Match
-                        </Button>
-                        <Button
-                          onClick={handleNoMatch}
-                          color="error"
-                          variant="outlined"
-                          sx={{ minWidth: 120, py: 1.5 }}
-                        >
-                          No Match
-                        </Button>
-                      </ButtonGroup>
-                    </Box>
-                  )}
-                  
-                  {settings.showAudio && (
-                    <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant="subtitle2" gutterBottom color="secondary">
-                        Audio
-                      </Typography>
-                      <ButtonGroup orientation="vertical" size="large">
-                        <Button
-                          onClick={handleAudioMatch}
-                          startIcon={<AudioIcon />}
-                          color="success"
-                          variant="contained"
-                          sx={{ minWidth: 120, py: 1.5 }}
-                        >
-                          Match
-                        </Button>
-                        <Button
-                          onClick={handleNoMatch}
-                          color="error"
-                          variant="outlined"
-                          sx={{ minWidth: 120, py: 1.5 }}
-                        >
-                          No Match
-                        </Button>
-                      </ButtonGroup>
-                    </Box>
-                  )}
-                </Box>
-                
-                {/* Keyboard Controls Info */}
-                <Box sx={{ textAlign: 'center', mt: 2, p: 2, bgcolor: alpha(theme.palette.primary.main, 0.05), borderRadius: 2 }}>
-                  <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
-                    Keyboard Shortcuts (Desktop)
-                  </Typography>
-                  
-                  <Box sx={{ display: 'flex', justifyContent: 'center', gap: 3, flexWrap: 'wrap' }}>
-                    {settings.showVisual && (
-                      <Typography variant="caption" color="text.secondary">
-                        <strong>Position Match:</strong> A or ← 
-                      </Typography>
-                    )}
-                    
-                    {settings.showAudio && (
-                      <Typography variant="caption" color="text.secondary">
-                        <strong>Audio Match:</strong> L or →
-                      </Typography>
-                    )}
-                    
-                    <Typography variant="caption" color="text.secondary">
-                      <strong>No Match:</strong> Space or N
-                    </Typography>
-                  </Box>
+                  <Button
+                    onClick={() => {
+                      handlePositionMatch();
+                      setTimeout(() => {
+                        const button = document.getElementById('position-btn');
+                        if (button) {
+                          button.style.backgroundColor = lastResponse.positionCorrect ? 'green' : 'red';
+                        }
+                      }, 100);
+                    }}
+                    id="position-btn"
+                    sx={{
+                      px: 6, // Matches padding of start and pause buttons
+                      py: 1.5,
+                      fontSize: '1rem',
+                      fontWeight: 600,
+                      backgroundColor: 'darkgrey',
+                      borderRadius: 2,
+                      '&:hover': {
+                        backgroundColor: 'grey',
+                      },
+                    }}
+                  >
+                    <Grid4x4Sharp />
+                  </Button>
+
+                  <Button
+                    onClick={() => {
+                      handleAudioMatch();
+                      setTimeout(() => {
+                        const button = document.getElementById('audio-btn');
+                        if (button) {
+                          button.style.backgroundColor = lastResponse.audioCorrect ? 'green' : 'red';
+                        }
+                      }, 100);
+                    }}
+                    id="audio-btn"
+                    sx={{
+                      px: 6, // Matches padding of start and pause buttons
+                      py: 1.5,
+                      fontSize: '1rem',
+                      fontWeight: 600,
+                      backgroundColor: 'darkgrey',
+                      borderRadius: 2,
+                      '&:hover': {
+                        backgroundColor: 'grey',
+                      },
+                    }}
+                  >
+                    <VolumeUpIcon />
+                  </Button>
                 </Box>
               </Box>
             </Fade>
           )}
           
-          {/* Game Instructions */}
-          {state.isPlaying && state.gamePhase !== 'response' && (
-            <Fade in={true}>
-              <Box sx={{ textAlign: 'center', mt: 2 }}>
-                <Typography variant="body2" color="text.secondary">
-                  {state.gamePhase === 'stimulus' && `Showing stimulus ${state.currentStimulusIndex + 1} of ${state.sequence.length}`}
-                  {state.gamePhase === 'waiting' && 'Preparing next stimulus...'}
-                  {state.gamePhase === 'feedback' && 'Processing your response...'}
-                </Typography>
-                
-                {state.currentStimulusIndex < state.nLevel && (
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                    Responses start after stimulus {state.nLevel + 1} (need {state.nLevel + 1 - state.currentStimulusIndex - 1} more)
-                  </Typography>
-                )}
-              </Box>
-            </Fade>
-          )}
 
-          <Divider sx={{ my: 3 }} />
+          <Divider sx={{ my: 3 }} />    
 
           {/* Quick Settings */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -303,7 +214,7 @@ const GameControls: React.FC = () => {
               </IconButton>
             </Tooltip>
           </Box>
-        </Paper>
+
 
         {/* Quick Settings Dialog */}
         <Dialog

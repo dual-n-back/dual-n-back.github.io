@@ -147,46 +147,13 @@ const GameBoard: React.FC = () => {
   return (
     <Fade in={true}>
       <Box sx={{ width: '100%' }}>
-        {/* Progress Section */}
-        <Box sx={{ mb: 3 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              {getGamePhaseMessage()}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {state.currentStimulusIndex + 1} / {state.sequence.length}
-            </Typography>
-          </Box>
-          
-          <LinearProgress
-            variant="determinate"
-            value={progress}
-            sx={{
-              height: 6,
-              borderRadius: 3,
-              backgroundColor: alpha(theme.palette.divider, 0.1),
-              '& .MuiLinearProgress-bar': {
-                borderRadius: 3,
-                background: `linear-gradient(90deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-              },
-            }}
-          />
-        </Box>
 
         {/* Game Grid */}
-        <Paper
-          elevation={3}
-          sx={{
-            p: 3,
-            background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)} 0%, ${alpha(theme.palette.background.default, 0.9)} 100%)`,
-            backdropFilter: 'blur(10px)',
-            border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-          }}
-        >
+
           <Grid container spacing={2} sx={{ maxWidth: '400px', margin: '0 auto' }}>
             {Array.from({ length: settings.gridSize ** 2 }, (_, index) => renderGridCell(index))}
           </Grid>
-        </Paper>
+
 
         {/* Game Info */}
  
