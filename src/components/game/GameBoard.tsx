@@ -21,14 +21,16 @@ const GameBoard: React.FC = () => {
     gamePhase,
     settings,
     score,
+    currentStimulusIndex,
   } = useGameStore()
   
-  const currentStimulus = useGameStore.getState().currentStimulus()
   const theme = useTheme()
   const [activePosition, setActivePosition] = useState<number | null>(null)
 
   // Effect to handle stimulus presentation
   useEffect(() => {
+    const currentStimulus = useGameStore.getState().currentStimulus()
+    
     if (!currentStimulus || gamePhase !== 'stimulus') {
       setActivePosition(null)
       return
@@ -55,7 +57,7 @@ const GameBoard: React.FC = () => {
     }, settings.stimulusDuration)
 
     return () => clearTimeout(timer)
-  }, [currentStimulus, gamePhase, settings])
+  }, [currentStimulusIndex, gamePhase, settings])
 
   const renderGridCell = useCallback((index: number) => {
     const { row, col } = indexToRowCol(index, settings.gridSize)
@@ -176,6 +178,7 @@ const GameBoard: React.FC = () => {
             </Paper>
           </Box>
 
+   
             <Paper elevation={1} sx={{ p: 2, mb: 3, backgroundColor: alpha(theme.palette.warning.main, 0.8) }}>
               <Typography variant="h6" gutterBottom>
                 ⏰ Missed Opportunities: {score.totalMissed}
@@ -187,6 +190,7 @@ const GameBoard: React.FC = () => {
                 Audio matches missed: {score.missedAudio}
               </Typography>
             </Paper>
+          
         </Paper>
       </Fade>
     )

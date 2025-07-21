@@ -136,7 +136,7 @@ export const generateEngagingSequence = (
   const targetPositionMatches = Math.round(eligibleStimuli * settings.position)
   const targetAudioMatches = Math.round(eligibleStimuli * settings.audio)
   
-  // Create engagement pattern: alternate between position and audio focus
+  // Create engagement pattern: varied and unpredictable placement
   const matchPattern = createEngagementPattern(
     eligibleStimuli, 
     targetPositionMatches, 
@@ -145,11 +145,18 @@ export const generateEngagingSequence = (
     settings.minGap
   )
   
+  // Add pattern-breaking to prevent predictability
+  const finalPattern = addPatternBreaking(
+    matchPattern.position,
+    matchPattern.audio,
+    { position: targetPositionMatches, audio: targetAudioMatches }
+  )
+  
   // Generate remaining stimuli following the engagement pattern
   for (let i = nLevel; i < length; i++) {
     const patternIndex = i - nLevel
-    const shouldPositionMatch = matchPattern.position[patternIndex]
-    const shouldAudioMatch = matchPattern.audio[patternIndex]
+    const shouldPositionMatch = finalPattern.position[patternIndex]
+    const shouldAudioMatch = finalPattern.audio[patternIndex]
     
     let position: number
     let audio: number
@@ -187,8 +194,8 @@ export const generateEngagingSequence = (
 }
 
 /**
- * Creates an engagement pattern that alternates between position and audio matches
- * while maintaining optimal spacing and avoiding long periods without user interaction
+ * Creates an engaging but unpredictable pattern that varies match types and timing
+ * Uses randomized placement with engagement constraints rather than systematic alternation
  */
 const createEngagementPattern = (
   length: number,
@@ -200,54 +207,180 @@ const createEngagementPattern = (
   const position = new Array(length).fill(false)
   const audio = new Array(length).fill(false)
   
-  // Place position matches with strategic spacing
+  // Create randomized placement pools with engagement rules
+  const availableSlots = Array.from({ length }, (_, i) => i)
+  
+  // Shuffle for randomness
+  for (let i = availableSlots.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [availableSlots[i], availableSlots[j]] = [availableSlots[j], availableSlots[i]]
+  }
+  
+  // Place position matches with varied spacing
   let placedPosition = 0
-  let consecutivePosition = 0
-  for (let i = 0; i < length && placedPosition < positionMatches; i++) {
-    if (consecutivePosition < maxConsecutive && 
-        (!position[i - 1] || consecutivePosition === 0) &&
-        (i === 0 || !needsGap(position, i, minGap))) {
+  let lastPositionIndex = -minGap - 1
+  
+  for (const slot of availableSlots) {
+    if (placedPosition >= positionMatches) break
+    
+    // Check if slot is valid for position match
+    if (slot - lastPositionIndex > minGap) {
+      // Add some randomness to prevent predictability
+      const shouldPlace = Math.random() < (1.2 - (placedPosition / positionMatches))
       
-      // Prefer positions that alternate with audio opportunities
-      const hasRecentAudio = audio.slice(Math.max(0, i - 3), i).some(a => a)
-      const willHaveAudio = i < length - 3
-      
-      if (!hasRecentAudio || willHaveAudio || Math.random() > 0.3) {
-        position[i] = true
-        placedPosition++
-        consecutivePosition++
+      if (shouldPlace) {
+        // Check consecutive constraint
+        let consecutive = 0
+        for (let j = slot - 1; j >= 0 && position[j]; j--) {
+          consecutive++
+        }
+        
+        if (consecutive < maxConsecutive) {
+          position[slot] = true
+          placedPosition++
+          lastPositionIndex = slot
+        }
       }
-    } else {
-      consecutivePosition = 0
     }
   }
   
-  // Place audio matches with strategic spacing, avoiding position overlap where possible
+  // Place audio matches with different randomization to avoid patterns
+  const audioShuffled = [...availableSlots].sort(() => Math.random() - 0.5)
   let placedAudio = 0
-  let consecutiveAudio = 0
-  for (let i = 0; i < length && placedAudio < audioMatches; i++) {
-    if (!position[i] && // Prefer non-overlapping positions for better engagement
-        consecutiveAudio < maxConsecutive && 
-        (!audio[i - 1] || consecutiveAudio === 0) &&
-        (i === 0 || !needsGap(audio, i, minGap))) {
+  let lastAudioIndex = -minGap - 1
+  
+  for (const slot of audioShuffled) {
+    if (placedAudio >= audioMatches) break
+    
+    // Check if slot is valid for audio match
+    if (slot - lastAudioIndex > minGap) {
+      // Vary placement probability based on position overlap and randomness
+      const hasPositionMatch = position[slot]
+      const overlapPenalty = hasPositionMatch ? 0.3 : 0
+      const randomFactor = Math.random() * 0.4 + 0.6 // 0.6 to 1.0
+      const placementProbability = (1.1 - (placedAudio / audioMatches)) * randomFactor - overlapPenalty
       
-      audio[i] = true
-      placedAudio++
-      consecutiveAudio++
-    } else if (position[i]) {
-      consecutiveAudio = 0
-    } else if (consecutiveAudio >= maxConsecutive) {
-      consecutiveAudio = 0
+      if (Math.random() < placementProbability) {
+        // Check consecutive constraint
+        let consecutive = 0
+        for (let j = slot - 1; j >= 0 && audio[j]; j--) {
+          consecutive++
+        }
+        
+        if (consecutive < maxConsecutive) {
+          audio[slot] = true
+          placedAudio++
+          lastAudioIndex = slot
+        }
+      }
     }
   }
   
-  // Fill remaining audio matches if needed
-  if (placedAudio < audioMatches) {
-    for (let i = 0; i < length && placedAudio < audioMatches; i++) {
-      if (!audio[i] && !needsGap(audio, i, minGap)) {
-        audio[i] = true
-        placedAudio++
+  // Fill remaining matches with anti-pattern logic
+  while (placedPosition < positionMatches) {
+    const remainingSlots = availableSlots.filter(slot => 
+      !position[slot] && 
+      slot > lastPositionIndex + minGap &&
+      getConsecutiveCount(position, slot) < maxConsecutive
+    )
+    
+    if (remainingSlots.length === 0) break
+    
+    // Choose a slot that breaks patterns
+    const slot = remainingSlots[Math.floor(Math.random() * remainingSlots.length)]
+    position[slot] = true
+    placedPosition++
+    lastPositionIndex = slot
+  }
+  
+  while (placedAudio < audioMatches) {
+    const remainingSlots = availableSlots.filter(slot => 
+      !audio[slot] && 
+      slot > lastAudioIndex + minGap &&
+      getConsecutiveCount(audio, slot) < maxConsecutive
+    )
+    
+    if (remainingSlots.length === 0) break
+    
+    // Choose a slot that breaks patterns
+    const slot = remainingSlots[Math.floor(Math.random() * remainingSlots.length)]
+    audio[slot] = true
+    placedAudio++
+    lastAudioIndex = slot
+  }
+  
+  return { position, audio }
+}
+
+/**
+ * Adds pattern-breaking randomization to prevent predictable sequences
+ * This function introduces controlled chaos to keep the game interesting
+ */
+const addPatternBreaking = (
+  position: boolean[], 
+  audio: boolean[], 
+  targetMatches: { position: number, audio: number }
+): { position: boolean[], audio: boolean[] } => {
+  const length = position.length
+  
+  // Detect overly regular patterns and break them
+  for (let i = 2; i < length - 2; i++) {
+    // Check for alternating patterns
+    if (position[i-2] && !position[i-1] && position[i] && !position[i+1] && position[i+2]) {
+      // Break the alternating pattern randomly
+      if (Math.random() < 0.4) {
+        position[i] = false
       }
+    }
+    
+    if (audio[i-2] && !audio[i-1] && audio[i] && !audio[i+1] && audio[i+2]) {
+      if (Math.random() < 0.4) {
+        audio[i] = false
+      }
+    }
+    
+    // Check for too-regular spacing (every 3rd position)
+    if (i % 3 === 0 && position[i] && position[i-3] && (i+3 < length && position[i+3])) {
+      if (Math.random() < 0.5) {
+        // Shift one of these matches
+        position[i] = false
+        // Try to place it nearby
+        for (let j of [i-1, i+1, i-2, i+2]) {
+          if (j >= 0 && j < length && !position[j] && !audio[j]) {
+            position[j] = true
+            break
+          }
+        }
+      }
+    }
+  }
+  
+  // Ensure we still have the right number of matches after pattern breaking
+  const actualPositionMatches = position.filter(Boolean).length
+  const actualAudioMatches = audio.filter(Boolean).length
+  
+  // Add back matches if we removed too many
+  if (actualPositionMatches < targetMatches.position) {
+    const deficit = targetMatches.position - actualPositionMatches
+    const availableSlots = position.map((val, idx) => (!val && !audio[idx]) ? idx : -1)
+      .filter(idx => idx !== -1)
+    
+    for (let i = 0; i < Math.min(deficit, availableSlots.length); i++) {
+      const randomSlot = availableSlots[Math.floor(Math.random() * availableSlots.length)]
+      position[randomSlot] = true
+      availableSlots.splice(availableSlots.indexOf(randomSlot), 1)
+    }
+  }
+  
+  if (actualAudioMatches < targetMatches.audio) {
+    const deficit = targetMatches.audio - actualAudioMatches
+    const availableSlots = audio.map((val, idx) => (!val && !position[idx]) ? idx : -1)
+      .filter(idx => idx !== -1)
+    
+    for (let i = 0; i < Math.min(deficit, availableSlots.length); i++) {
+      const randomSlot = availableSlots[Math.floor(Math.random() * availableSlots.length)]
+      audio[randomSlot] = true
+      availableSlots.splice(availableSlots.indexOf(randomSlot), 1)
     }
   }
   
@@ -255,13 +388,22 @@ const createEngagementPattern = (
 }
 
 /**
- * Checks if a position needs a gap based on minimum spacing requirements
+ * Helper function to count consecutive matches that would result from placing a match at given position
  */
-const needsGap = (pattern: boolean[], index: number, minGap: number): boolean => {
-  for (let i = Math.max(0, index - minGap); i < index; i++) {
-    if (pattern[i]) return true
+const getConsecutiveCount = (pattern: boolean[], index: number): number => {
+  let count = 1 // The match we're about to place
+  
+  // Count backwards
+  for (let i = index - 1; i >= 0 && pattern[i]; i--) {
+    count++
   }
-  return false
+  
+  // Count forwards
+  for (let i = index + 1; i < pattern.length && pattern[i]; i++) {
+    count++
+  }
+  
+  return count
 }
 
 /**
