@@ -852,8 +852,8 @@ export const rowColToIndex = (row: number, col: number, gridSize: number) => {
 /**
  * Calculates the accuracy percentage from score data
  */
-export const calculateAccuracy = (correct: number, incorrect: number): number => {
-  const total = correct + incorrect
+export const calculateAccuracy = (correct: number, incorrect: number, missed: number = 0): number => {
+  const total = correct + incorrect + missed
   if (total === 0) return 0
   return (correct / total) * 100
 }
@@ -866,10 +866,13 @@ export const calculateGameScore = (score: {
   positionIncorrect: number
   audioCorrect: number
   audioIncorrect: number
+  missedPositional?: number
+  missedAudio?: number
 }): number => {
   const totalCorrect = score.positionCorrect + score.audioCorrect
   const totalIncorrect = score.positionIncorrect + score.audioIncorrect
-  return calculateAccuracy(totalCorrect, totalIncorrect)
+  const totalMissed = (score.missedPositional || 0) + (score.missedAudio || 0)
+  return calculateAccuracy(totalCorrect, totalIncorrect, totalMissed)
 }
 
 /**

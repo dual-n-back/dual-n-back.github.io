@@ -6,7 +6,7 @@ import { Statistics, GameSession, Achievement } from '../types/game'
 const achievementConditions: Record<string, (stats: Statistics, session?: GameSession) => boolean> = {
   first_game: (stats) => stats.totalGamesPlayed >= 1,
   perfect_score: (_, session) => session ? 
-    (session.score.totalCorrect / (session.score.totalCorrect + session.score.totalIncorrect)) === 1 : false,
+    (session.score.totalCorrect / (session.score.totalCorrect + session.score.totalIncorrect + session.score.totalMissed)) === 1 : false,
   ten_games: (stats) => stats.totalGamesPlayed >= 10,
   level_5: (stats) => Object.keys(stats.nLevelProgress).some(level => 
     parseInt(level) >= 5 && stats.nLevelProgress[parseInt(level)].gamesPlayed > 0
@@ -91,9 +91,10 @@ const calculateStats = (sessions: GameSession[]): Statistics => {
   }
 
   const completedSessions = sessions.filter(s => s.completed)
-  const scores = completedSessions.map(s => 
-    s.score.totalCorrect / (s.score.totalCorrect + s.score.totalIncorrect) * 100
-  )
+  const scores = completedSessions.map(s => {
+    const totalAttempts = s.score.totalCorrect + s.score.totalIncorrect + s.score.totalMissed
+    return totalAttempts > 0 ? (s.score.totalCorrect / totalAttempts * 100) : 0
+  })
 
   const totalPlayTime = completedSessions.reduce((sum, s) => sum + s.duration, 0)
   const averageScore = scores.length > 0 ? scores.reduce((sum, score) => sum + score, 0) / scores.length : 0
@@ -140,7 +141,8 @@ const calculateStats = (sessions: GameSession[]): Statistics => {
     }
     
     const levelStats = nLevelProgress[level]
-    const sessionScore = session.score.totalCorrect / (session.score.totalCorrect + session.score.totalIncorrect) * 100
+    const totalAttempts = session.score.totalCorrect + session.score.totalIncorrect + session.score.totalMissed
+    const sessionScore = totalAttempts > 0 ? (session.score.totalCorrect / totalAttempts * 100) : 0
     
     levelStats.gamesPlayed++
     levelStats.averageScore = (levelStats.averageScore * (levelStats.gamesPlayed - 1) + sessionScore) / levelStats.gamesPlayed

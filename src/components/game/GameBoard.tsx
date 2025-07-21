@@ -11,7 +11,7 @@ import {
 } from '@mui/material'
 import { useGameStore } from '../../stores/gameStore'
 import { playAudioTone } from '../../utils/audioManager'
-import { indexToRowCol } from '../../utils/gameLogic'
+import { indexToRowCol, calculateAccuracy } from '../../utils/gameLogic'
 
 const GameBoard: React.FC = () => {
   const { 
@@ -109,9 +109,7 @@ const GameBoard: React.FC = () => {
 
   // Show results when game is completed
   if (gamePhase === 'completed') {
-    const accuracy = score.totalCorrect + score.totalIncorrect > 0 
-      ? (score.totalCorrect / (score.totalCorrect + score.totalIncorrect) * 100) 
-      : 0
+    const accuracy = calculateAccuracy(score.totalCorrect, score.totalIncorrect, score.totalMissed)
     
     return (
       <Fade in={true}>
