@@ -60,8 +60,7 @@ Visit [https://dual-n-back.github.io/](https://dual-n-back.github.io/) to start 
 1. **Choose your N-level**: Start with 2-back for beginners
 2. **Watch and listen**: Pay attention to visual positions and audio stimuli
 3. **Make decisions**: Identify when stimuli match those from N steps back
-4. **Respond quickly**: Use the match/no-match buttons for each modality
-5. **Track progress**: Monitor your improvement over time
+4. **Track progress**: Monitor your improvement over time
 
 ## 🛠️ Technology Stack
 

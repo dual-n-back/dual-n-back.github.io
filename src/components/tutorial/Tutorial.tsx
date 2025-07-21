@@ -114,7 +114,7 @@ const tutorialSteps = [
             </ListItemIcon>
             <ListItemText
               primary="1. Choose your N-level"
-              secondary="Start with 2-back for beginners. As you improve, increase the level."
+              secondary="Start with 1-back for beginners. As you improve, increase the level."
             />
           </ListItem>
           
@@ -137,16 +137,7 @@ const tutorialSteps = [
               secondary="For each stimulus, decide if it matches the one from N steps back."
             />
           </ListItem>
-          
-          <ListItem>
-            <ListItemIcon>
-              <CheckIcon color="success" />
-            </ListItemIcon>
-            <ListItemText
-              primary="4. Respond quickly"
-              secondary="Click 'Match' or 'No Match' for both position and audio (if enabled)."
-            />
-          </ListItem>
+        
         </List>
         
         <Alert severity="info" sx={{ mt: 2 }}>
