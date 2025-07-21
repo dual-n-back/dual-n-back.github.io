@@ -176,7 +176,6 @@ const GameBoard: React.FC = () => {
             </Paper>
           </Box>
 
-          {score.totalMissed > 0 && (
             <Paper elevation={1} sx={{ p: 2, mb: 3, backgroundColor: alpha(theme.palette.warning.main, 0.8) }}>
               <Typography variant="h6" gutterBottom>
                 ⏰ Missed Opportunities: {score.totalMissed}
@@ -188,7 +187,6 @@ const GameBoard: React.FC = () => {
                 Audio matches missed: {score.missedAudio}
               </Typography>
             </Paper>
-          )}
         </Paper>
       </Fade>
     )
