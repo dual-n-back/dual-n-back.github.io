@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { GameState, GameSettings, GameSequence, ResponseType } from '../types/game'
-import { generateGameSequence } from '../utils/gameLogic'
+import { generateEngagingSequence } from '../utils/gameLogic'
 import { preloadAudio } from '../utils/audioManager'
 
 const defaultSettings: GameSettings = {
@@ -78,7 +78,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // Actions
   startGame: () => {
     const state = get()
-    const sequence = generateGameSequence(state.totalRounds + state.nLevel, state.settings.gridSize)
+    
+    // Determine difficulty based on nLevel for optimal engagement
+    const difficulty = state.nLevel <= 2 ? 'easy' : state.nLevel <= 4 ? 'medium' : 'hard'
+    
+    // Generate engaging sequence with balanced match opportunities
+    const sequence = generateEngagingSequence(
+      state.totalRounds + state.nLevel, 
+      state.settings.gridSize,
+      state.nLevel,
+      difficulty
+    )
     
     // Preload audio to ensure voices are ready
     preloadAudio().catch(console.error)
