@@ -4,6 +4,10 @@ import { AudioTone } from '../types/game'
 let audioContext: AudioContext | null = null
 let masterGain: GainNode | null = null
 
+// Voice selection for speech synthesis
+let preferredVoice: SpeechSynthesisVoice | null = null
+let voicesLoaded = false
+
 // Predefined audio tones
 const audioTones: AudioTone[] = [
   { frequency: 261.63, type: 'sine', name: 'C4' },    // C4
@@ -19,6 +23,77 @@ const audioTones: AudioTone[] = [
 // Spoken letters for audio mode
 const spokenLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 const spokenNumbers = ['1', '2', '3', '4', '5', '6', '7', '8']
+
+/**
+ * Load and select the best available female voice
+ */
+const loadVoices = (): Promise<void> => {
+  return new Promise((resolve) => {
+    if (voicesLoaded && preferredVoice) {
+      resolve()
+      return
+    }
+
+    const selectBestVoice = () => {
+      const voices = speechSynthesis.getVoices()
+      
+      if (voices.length === 0) {
+        // Voices not loaded yet, try again
+        setTimeout(selectBestVoice, 100)
+        return
+      }
+
+      // Priority order for voice selection (female voices preferred)
+      const voicePreferences = [
+        // High-quality female voices
+        (v: SpeechSynthesisVoice) => v.name.toLowerCase().includes('samantha') && v.lang.startsWith('en'),
+        (v: SpeechSynthesisVoice) => v.name.toLowerCase().includes('karen') && v.lang.startsWith('en'),
+        (v: SpeechSynthesisVoice) => v.name.toLowerCase().includes('victoria') && v.lang.startsWith('en'),
+        (v: SpeechSynthesisVoice) => v.name.toLowerCase().includes('susan') && v.lang.startsWith('en'),
+        (v: SpeechSynthesisVoice) => v.name.toLowerCase().includes('allison') && v.lang.startsWith('en'),
+        
+        // Google voices (usually high quality)
+        (v: SpeechSynthesisVoice) => v.name.toLowerCase().includes('google') && v.name.toLowerCase().includes('female') && v.lang.startsWith('en'),
+        (v: SpeechSynthesisVoice) => v.name.toLowerCase().includes('google') && v.lang.startsWith('en') && !v.name.toLowerCase().includes('male'),
+        
+        // Microsoft voices
+        (v: SpeechSynthesisVoice) => v.name.toLowerCase().includes('microsoft') && v.name.toLowerCase().includes('female') && v.lang.startsWith('en'),
+        (v: SpeechSynthesisVoice) => v.name.toLowerCase().includes('zira') && v.lang.startsWith('en'),
+        
+        // Any female voice in English
+        (v: SpeechSynthesisVoice) => (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('woman')) && v.lang.startsWith('en'),
+        
+        // Fallback to any English voice
+        (v: SpeechSynthesisVoice) => v.lang.startsWith('en') && v.default,
+        (v: SpeechSynthesisVoice) => v.lang.startsWith('en'),
+      ]
+
+      for (const preference of voicePreferences) {
+        const voice = voices.find(preference)
+        if (voice) {
+          preferredVoice = voice
+          voicesLoaded = true
+          console.log(`Selected voice: ${voice.name} (${voice.lang})`)
+          resolve()
+          return
+        }
+      }
+
+      // Ultimate fallback
+      preferredVoice = voices[0] || null
+      voicesLoaded = true
+      resolve()
+    }
+
+    // Start voice selection
+    selectBestVoice()
+
+    // Also listen for voice changes (some browsers load voices asynchronously)
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+      speechSynthesis.onvoiceschanged = selectBestVoice
+    }
+  })
+}
 
 /**
  * Initialize the audio context and master gain
@@ -98,33 +173,79 @@ export const playTone = async (
 }
 
 /**
- * Play spoken letter using Speech Synthesis API
+ * Play spoken letter using Speech Synthesis API with improved voice and timing
  */
-export const playSpokenLetter = (
+export const playSpokenLetter = async (
   letterIndex: number,
   volume: number = 0.5
 ): Promise<void> => {
+  if (letterIndex < 0 || letterIndex >= spokenLetters.length) {
+    throw new Error(`Invalid letter index: ${letterIndex}`)
+  }
+
+  if (!('speechSynthesis' in window)) {
+    throw new Error('Speech synthesis not supported')
+  }
+
+  // Ensure voices are loaded and preferred voice is selected
+  await loadVoices()
+
+  // Cancel any ongoing speech to prevent overlapping
+  speechSynthesis.cancel()
+
+  // Small delay to ensure clean start
+  await new Promise(resolve => setTimeout(resolve, 50))
+
   return new Promise((resolve, reject) => {
-    if (letterIndex < 0 || letterIndex >= spokenLetters.length) {
-      reject(new Error(`Invalid letter index: ${letterIndex}`))
-      return
-    }
-
-    if (!('speechSynthesis' in window)) {
-      reject(new Error('Speech synthesis not supported'))
-      return
-    }
-
     try {
       const utterance = new SpeechSynthesisUtterance(spokenLetters[letterIndex])
-      utterance.volume = volume
-      utterance.rate = 1.2
-      utterance.pitch = 1.0
       
-      utterance.onend = () => resolve()
-      utterance.onerror = (event) => reject(new Error(`Speech synthesis error: ${event.error}`))
+      // Use preferred voice if available
+      if (preferredVoice) {
+        utterance.voice = preferredVoice
+      }
       
-      speechSynthesis.speak(utterance)
+      // Optimize speech parameters for clarity
+      utterance.volume = Math.max(0, Math.min(1, volume))
+      utterance.rate = 0.9  // Slightly slower for better pronunciation
+      utterance.pitch = 1.1 // Slightly higher pitch for female voice
+      utterance.lang = 'en-US' // Explicit language setting
+      
+      let resolved = false
+      const timeoutId = setTimeout(() => {
+        if (!resolved) {
+          resolved = true
+          speechSynthesis.cancel()
+          resolve()
+        }
+      }, 2000) // 2 second timeout to prevent hanging
+      
+      utterance.onstart = () => {
+        console.log(`Speaking letter: ${spokenLetters[letterIndex]}`)
+      }
+      
+      utterance.onend = () => {
+        if (!resolved) {
+          resolved = true
+          clearTimeout(timeoutId)
+          resolve()
+        }
+      }
+      
+      utterance.onerror = (event) => {
+        if (!resolved) {
+          resolved = true
+          clearTimeout(timeoutId)
+          console.warn(`Speech synthesis error: ${event.error}`)
+          resolve() // Resolve instead of reject to prevent game breaking
+        }
+      }
+      
+      // Start speaking with a small delay to ensure readiness
+      setTimeout(() => {
+        speechSynthesis.speak(utterance)
+      }, 100)
+      
     } catch (error) {
       reject(error)
     }
@@ -132,33 +253,79 @@ export const playSpokenLetter = (
 }
 
 /**
- * Play spoken number using Speech Synthesis API
+ * Play spoken number using Speech Synthesis API with improved voice and timing
  */
-export const playSpokenNumber = (
+export const playSpokenNumber = async (
   numberIndex: number,
   volume: number = 0.5
 ): Promise<void> => {
+  if (numberIndex < 0 || numberIndex >= spokenNumbers.length) {
+    throw new Error(`Invalid number index: ${numberIndex}`)
+  }
+
+  if (!('speechSynthesis' in window)) {
+    throw new Error('Speech synthesis not supported')
+  }
+
+  // Ensure voices are loaded and preferred voice is selected
+  await loadVoices()
+
+  // Cancel any ongoing speech to prevent overlapping
+  speechSynthesis.cancel()
+
+  // Small delay to ensure clean start
+  await new Promise(resolve => setTimeout(resolve, 50))
+
   return new Promise((resolve, reject) => {
-    if (numberIndex < 0 || numberIndex >= spokenNumbers.length) {
-      reject(new Error(`Invalid number index: ${numberIndex}`))
-      return
-    }
-
-    if (!('speechSynthesis' in window)) {
-      reject(new Error('Speech synthesis not supported'))
-      return
-    }
-
     try {
       const utterance = new SpeechSynthesisUtterance(spokenNumbers[numberIndex])
-      utterance.volume = volume
-      utterance.rate = 1.2
-      utterance.pitch = 1.0
       
-      utterance.onend = () => resolve()
-      utterance.onerror = (event) => reject(new Error(`Speech synthesis error: ${event.error}`))
+      // Use preferred voice if available
+      if (preferredVoice) {
+        utterance.voice = preferredVoice
+      }
       
-      speechSynthesis.speak(utterance)
+      // Optimize speech parameters for clarity
+      utterance.volume = Math.max(0, Math.min(1, volume))
+      utterance.rate = 0.9  // Slightly slower for better pronunciation
+      utterance.pitch = 1.1 // Slightly higher pitch for female voice
+      utterance.lang = 'en-US' // Explicit language setting
+      
+      let resolved = false
+      const timeoutId = setTimeout(() => {
+        if (!resolved) {
+          resolved = true
+          speechSynthesis.cancel()
+          resolve()
+        }
+      }, 2000) // 2 second timeout to prevent hanging
+      
+      utterance.onstart = () => {
+        console.log(`Speaking number: ${spokenNumbers[numberIndex]}`)
+      }
+      
+      utterance.onend = () => {
+        if (!resolved) {
+          resolved = true
+          clearTimeout(timeoutId)
+          resolve()
+        }
+      }
+      
+      utterance.onerror = (event) => {
+        if (!resolved) {
+          resolved = true
+          clearTimeout(timeoutId)
+          console.warn(`Speech synthesis error: ${event.error}`)
+          resolve() // Resolve instead of reject to prevent game breaking
+        }
+      }
+      
+      // Start speaking with a small delay to ensure readiness
+      setTimeout(() => {
+        speechSynthesis.speak(utterance)
+      }, 100)
+      
     } catch (error) {
       reject(error)
     }
@@ -203,6 +370,19 @@ export const setMasterVolume = (volume: number): void => {
 }
 
 /**
+ * Get information about the selected voice
+ */
+export const getSelectedVoiceInfo = (): { name: string; lang: string } | null => {
+  if (preferredVoice) {
+    return {
+      name: preferredVoice.name,
+      lang: preferredVoice.lang
+    }
+  }
+  return null
+}
+
+/**
  * Get available audio tones
  */
 export const getAudioTones = (): AudioTone[] => {
@@ -240,12 +420,13 @@ export const testAudio = async (
 }
 
 /**
- * Preload audio context (call on user interaction)
+ * Preload audio context and voices (call on user interaction)
  */
 export const preloadAudio = async (): Promise<void> => {
   try {
     initializeAudioContext()
     await resumeAudioContext()
+    await loadVoices() // Also preload the best voice
   } catch (error) {
     console.error('Failed to preload audio:', error)
   }

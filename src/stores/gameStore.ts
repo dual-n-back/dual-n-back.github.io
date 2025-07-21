@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { GameState, GameSettings, GameSequence, ResponseType } from '../types/game'
 import { generateGameSequence } from '../utils/gameLogic'
+import { preloadAudio } from '../utils/audioManager'
 
 const defaultSettings: GameSettings = {
   nLevel: 1,
@@ -78,6 +79,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   startGame: () => {
     const state = get()
     const sequence = generateGameSequence(state.totalRounds + state.nLevel, state.settings.gridSize)
+    
+    // Preload audio to ensure voices are ready
+    preloadAudio().catch(console.error)
     
     set({
       sequence,
