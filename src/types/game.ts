@@ -17,6 +17,9 @@ export interface GameState {
     audioIncorrect: number
     totalCorrect: number
     totalIncorrect: number
+    missedPositional: number
+    missedAudio: number
+    totalMissed: number
   }
   gameStartTime: number | null
   gameEndTime: number | null,
@@ -40,7 +43,7 @@ export interface GameSettings {
   stimulusDuration: number // milliseconds
   interstimulusInterval: number // milliseconds
   gridSize: 3 | 4 | 5
-  audioType: 'letters' | 'tones' | 'numbers'
+  audioType: 'letters' | 'numbers' | 'tones'
   volume: number
   autoAdvance: boolean
 }

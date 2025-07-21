@@ -20,8 +20,7 @@ const GameBoard: React.FC = () => {
     nLevel,
     gamePhase,
     settings,
-    responses,
-    sequence,
+    score,
   } = useGameStore()
   
   const currentStimulus = useGameStore.getState().currentStimulus()
@@ -106,73 +105,11 @@ const GameBoard: React.FC = () => {
     )
   }, [activePosition, settings.gridSize, theme])
 
-  // Calculate detailed results for completed game
-  const calculateResults = () => {
-    const totalResponses = responses.length
-    const correctResponses = responses.filter(r => r.correct).length
-    const incorrectResponses = responses.filter(r => !r.correct).length
-    
-    const positionResponses = responses.filter(r => r.type === 'position')
-    const audioResponses = responses.filter(r => r.type === 'audio')
-    
-    const correctPositional = positionResponses.filter(r => r.correct).length
-    const incorrectPositional = positionResponses.filter(r => !r.correct).length
-    
-    const correctAudio = audioResponses.filter(r => r.correct).length
-    const incorrectAudio = audioResponses.filter(r => !r.correct).length
-    
-    // Calculate missed opportunities - only count actual matches that were missed
-    let missedPositional = 0
-    let missedAudio = 0
-    
-    // Check each round where matching was possible (after nLevel rounds)
-    for (let round = nLevel; round < currentRound; round++) {
-      const currentStimulus = sequence[round]
-      const nBackStimulus = sequence[round - nLevel]
-      
-      if (!currentStimulus || !nBackStimulus) continue
-      
-      // Check if there was a position match
-      if (currentStimulus.position === nBackStimulus.position) {
-        const hasPositionResponse = responses.some(r => 
-          r.type === 'position' && r.roundIndex === round
-        )
-        if (!hasPositionResponse) {
-          missedPositional++
-        }
-      }
-      
-      // Check if there was an audio match
-      if (currentStimulus.audio === nBackStimulus.audio) {
-        const hasAudioResponse = responses.some(r => 
-          r.type === 'audio' && r.roundIndex === round
-        )
-        if (!hasAudioResponse) {
-          missedAudio++
-        }
-      }
-    }
-    
-    const totalMissed = missedPositional + missedAudio
-    
-    return {
-      totalCorrect: correctResponses,
-      correctPositional,
-      correctAudio,
-      totalIncorrect: incorrectResponses,
-      incorrectPositional,
-      incorrectAudio,
-      totalMissed,
-      missedPositional,
-      missedAudio,
-      totalResponses,
-      accuracy: totalResponses > 0 ? (correctResponses / totalResponses * 100) : 0
-    }
-  }
-
   // Show results when game is completed
   if (gamePhase === 'completed') {
-    const results = calculateResults()
+    const accuracy = score.totalCorrect + score.totalIncorrect > 0 
+      ? (score.totalCorrect / (score.totalCorrect + score.totalIncorrect) * 100) 
+      : 0
     
     return (
       <Fade in={true}>
@@ -208,47 +145,47 @@ const GameBoard: React.FC = () => {
         >
           
           <Typography variant="h4" gutterBottom color="primary" sx={{ mb: 3 }}>
-            Final Score: {results.accuracy.toFixed(1)}%
+            Final Score: {accuracy.toFixed(1)}%
           </Typography>
 
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3, mb: 3 }}>
             {/* Correct Responses */}
             <Paper elevation={1} sx={{ p: 2, backgroundColor: alpha(theme.palette.success.main, 0.8) }}>
               <Typography variant="h6" gutterBottom>
-                ✅ Correct ({results.totalCorrect})
+                ✅ Correct ({score.totalCorrect})
               </Typography>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                Position: {results.correctPositional}
+                Position: {score.positionCorrect}
               </Typography>
               <Typography variant="body2">
-                Audio: {results.correctAudio}
+                Audio: {score.audioCorrect}
               </Typography>
             </Paper>
 
             {/* Incorrect Responses */}
             <Paper elevation={1} sx={{ p: 2, backgroundColor: alpha(theme.palette.error.main, 0.8) }}>
               <Typography variant="h6" gutterBottom>
-                ❌ Incorrect ({results.totalIncorrect})
+                ❌ Incorrect ({score.totalIncorrect})
               </Typography>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                Position: {results.incorrectPositional}
+                Position: {score.positionIncorrect}
               </Typography>
               <Typography variant="body2">
-                Audio: {results.incorrectAudio}
+                Audio: {score.audioIncorrect}
               </Typography>
             </Paper>
           </Box>
 
-          {results.totalMissed > 0 && (
+          {score.totalMissed > 0 && (
             <Paper elevation={1} sx={{ p: 2, mb: 3, backgroundColor: alpha(theme.palette.warning.main, 0.8) }}>
               <Typography variant="h6" gutterBottom>
-                ⏰ Missed Opportunities: {results.totalMissed}
+                ⏰ Missed Opportunities: {score.totalMissed}
               </Typography>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                Position matches missed: {results.missedPositional}
+                Position matches missed: {score.missedPositional}
               </Typography>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                Audio matches missed: {results.missedAudio}
+                Audio matches missed: {score.missedAudio}
               </Typography>
             </Paper>
           )}

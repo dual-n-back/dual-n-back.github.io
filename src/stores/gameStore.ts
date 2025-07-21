@@ -32,6 +32,9 @@ const initialGameState: Omit<GameState, 'nLevel' | 'totalRounds'> = {
     audioIncorrect: 0,
     totalCorrect: 0,
     totalIncorrect: 0,
+    missedPositional: 0,
+    missedAudio: 0,
+    totalMissed: 0,
   },
   gameStartTime: null,
   gameEndTime: null,
@@ -95,6 +98,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         audioIncorrect: 0,
         totalCorrect: 0,
         totalIncorrect: 0,
+        missedPositional: 0,
+        missedAudio: 0,
+        totalMissed: 0,
       },
       feedback: {}
     })
@@ -209,39 +215,50 @@ export const useGameStore = create<GameStore>((set, get) => ({
     let positionIncorrect = score.positionIncorrect
     let audioCorrect = score.audioCorrect
     let audioIncorrect = score.audioIncorrect
+    let missedPositional = score.missedPositional
+    let missedAudio = score.missedAudio
     const newResponses = [...responses]
     let correct = false
 
     // Only check if we're past the N-back threshold
-    if (nBackIndex >= 0 && type) {
+    if (nBackIndex >= 0) {
       const nBackSequence = sequence[nBackIndex]
       
-      // Check position response
-      if (type === 'position') {
-        correct = nBackSequence.position === currentSequence.position
-        if (correct) {
-          positionCorrect++
-        } else {
-          positionIncorrect++
+      if (type) {
+        // User provided a response
+        if (type === 'position') {
+          correct = nBackSequence.position === currentSequence.position
+          if (correct) {
+            positionCorrect++
+          } else {
+            positionIncorrect++
+          }
         }
-      }
 
-      // Check audio response
-      if (type === 'audio') {
-        correct = nBackSequence.audio === currentSequence.audio
-        if (correct) {
-          audioCorrect++
-        } else {
-          audioIncorrect++
+        if (type === 'audio') {
+          correct = nBackSequence.audio === currentSequence.audio
+          if (correct) {
+            audioCorrect++
+          } else {
+            audioIncorrect++
+          }
+        }
+        
+        newResponses.push({
+          type,
+          responseTime: responseDeadline ? Date.now() - (responseDeadline - 3000) : 0,
+          roundIndex: currentRound,
+          correct,
+        })
+      } else {
+        // No response provided - check for missed opportunities
+        if (nBackSequence.position === currentSequence.position) {
+          missedPositional++
+        }
+        if (nBackSequence.audio === currentSequence.audio) {
+          missedAudio++
         }
       }
-      
-      newResponses.push({
-        type,
-        responseTime: responseDeadline ? Date.now() - (responseDeadline - 3000) : 0,
-        roundIndex: currentRound,
-        correct,
-      })
     }
 
     set({
@@ -253,6 +270,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         audioIncorrect,
         totalCorrect: positionCorrect + audioCorrect,
         totalIncorrect: positionIncorrect + audioIncorrect,
+        missedPositional,
+        missedAudio,
+        totalMissed: missedPositional + missedAudio,
       },
       waitingForResponse: false,
       gamePhase: 'feedback',
