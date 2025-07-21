@@ -26,47 +26,62 @@ import {
   Grid4x4Sharp,
 } from '@mui/icons-material'
 import { ResponseType } from '../../types/game'
-import { useGame } from '../../hooks/useGame'
-import { useStats } from '../../hooks/useStats'
+import { useGameStore } from '../../stores/gameStore'
+import { useStatsStore } from '../../stores/statsStore'
 import { generateSessionId } from '../../utils/gameLogic'
 
 const GameControls: React.FC = () => {
-  const { state, settings, startGame, resetGame, updateSettings, submitResponse } = useGame()
-  const { addGameSession } = useStats()
+  const {
+    isPlaying,
+    currentRound,
+    nLevel,
+    gamePhase,
+    gameEndTime,
+    gameStartTime,
+    score,
+    responses,
+    feedback,
+    settings,
+    startGame,
+    resetGame,
+    updateSettings,
+    submitResponseIfValid
+  } = useGameStore()
+  const { addGameSession } = useStatsStore()
 
   
   const [showQuickSettings, setShowQuickSettings] = useState(false)
 
   const getButtonColor = (type: ResponseType) => {
-    const feedbackState = state.feedback[type];
+    const feedbackState = feedback[type];
     if (feedbackState === undefined) return 'darkgrey';
     return feedbackState ? 'green' : 'red';
   }
 
-  const handlePositionMatch = () => submitResponse('position')
-  const handleAudioMatch = () => submitResponse('audio')
+  const handlePositionMatch = () => submitResponseIfValid('position')
+  const handleAudioMatch = () => submitResponseIfValid('audio')
 
   // Handle game completion
   useEffect(() => {
-    if (state.gamePhase === 'completed' && state.gameEndTime) {
+    if (gamePhase === 'completed' && gameEndTime) {
       const session = {
         id: generateSessionId(),
         date: Date.now(),
-        nLevel: state.nLevel,
-        totalRounds: state.currentRound,
-        completedRounds: state.currentRound,
-        score: state.score,
-        duration: state.gameStartTime ? state.gameEndTime - state.gameStartTime : 0,
+        nLevel: nLevel,
+        totalRounds: currentRound,
+        completedRounds: currentRound,
+        score: score,
+        duration: gameStartTime ? gameEndTime - gameStartTime : 0,
         settings,
-        responses: state.responses,
+        responses: responses,
         completed: true,
       }
       addGameSession(session)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.gamePhase, state.gameEndTime]) // Only depend on completion trigger
+  }, [gamePhase, gameEndTime]) // Only depend on completion trigger
 
-  const canStart = !state.isPlaying
+  const canStart = !isPlaying
 
   return (
     <Fade in={true}>
@@ -93,7 +108,7 @@ const GameControls: React.FC = () => {
               
             </ButtonGroup>
             
-            {!state.isPlaying && (
+            {!isPlaying && (
               <Tooltip title="Reset game settings">
                 <IconButton
                   onClick={resetGame}
@@ -106,7 +121,7 @@ const GameControls: React.FC = () => {
           </Box>
 
           {/* Response Section */}
-          {state.isPlaying && (
+          {isPlaying && (
             <Fade in={true}>
               <Box>
                 {/* Response Buttons*/}
@@ -158,12 +173,12 @@ const GameControls: React.FC = () => {
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               <Chip
-                label={`${state.nLevel}-Back`}
+                label={`${nLevel}-Back`}
                 color="primary"
                 sx={{ fontWeight: 600 }}
               />
               <Chip
-                label={`Round ${state.currentRound}`}
+                label={`Round ${currentRound}`}
                 variant="outlined"
               />
               {settings.showVisual && <Chip label="Visual" size="small" color="primary" variant="outlined" />}
@@ -173,7 +188,7 @@ const GameControls: React.FC = () => {
             <Tooltip title="Quick Settings">
               <IconButton
                 onClick={() => setShowQuickSettings(true)}
-                disabled={state.isPlaying}
+                disabled={isPlaying}
               >
                 <SettingsIcon />
               </IconButton>
@@ -199,7 +214,7 @@ const GameControls: React.FC = () => {
                 max={8}
                 step={1}
                 marks
-                disabled={state.isPlaying}
+                disabled={isPlaying}
               />
               
               <Typography gutterBottom sx={{ mt: 3 }}>Rounds: {settings.totalRounds}</Typography>
@@ -216,7 +231,7 @@ const GameControls: React.FC = () => {
                   { value: 40, label: '40' },
                   { value: 50, label: '50' },
                 ]}
-                disabled={state.isPlaying}
+                disabled={isPlaying}
               />
               
               <Box sx={{ mt: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -225,7 +240,7 @@ const GameControls: React.FC = () => {
                     <Switch
                       checked={settings.showVisual}
                       onChange={(e) => updateSettings({ showVisual: e.target.checked })}
-                      disabled={state.isPlaying}
+                      disabled={isPlaying}
                     />
                   }
                   label="Visual Stimuli"
@@ -235,7 +250,7 @@ const GameControls: React.FC = () => {
                     <Switch
                       checked={settings.showAudio}
                       onChange={(e) => updateSettings({ showAudio: e.target.checked })}
-                      disabled={state.isPlaying}
+                      disabled={isPlaying}
                     />
                   }
                   label="Audio Stimuli"

@@ -1,20 +1,6 @@
-import React, { createContext, useReducer, useCallback, useEffect } from 'react'
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import { Statistics, GameSession, Achievement } from '../types/game'
-
-interface StatsContextType {
-  stats: Statistics
-  achievements: Achievement[]
-  addGameSession: (session: GameSession) => void
-  clearStats: () => void
-  exportStats: () => string
-  importStats: (data: string) => void
-}
-
-type StatsAction = 
-  | { type: 'ADD_SESSION'; payload: GameSession }
-  | { type: 'CLEAR_STATS' }
-  | { type: 'LOAD_STATS'; payload: Statistics }
-  | { type: 'UPDATE_ACHIEVEMENTS'; payload: Achievement[] }
 
 // Achievement condition functions - these don't get serialized to localStorage
 const achievementConditions: Record<string, (stats: Statistics, session?: GameSession) => boolean> = {
@@ -174,139 +160,109 @@ const calculateStats = (sessions: GameSession[]): Statistics => {
   }
 }
 
-const statsReducer = (state: Statistics, action: StatsAction): Statistics => {
-  switch (action.type) {
-    case 'ADD_SESSION': {
-      const newSessions = [...state.sessions, action.payload]
-      return calculateStats(newSessions)
-    }
-
-    case 'CLEAR_STATS':
-      return initialStats
-
-    case 'LOAD_STATS':
-      return action.payload
-
-    default:
-      return state
-  }
+interface StatsStore {
+  stats: Statistics
+  achievements: Achievement[]
+  
+  // Actions
+  addGameSession: (session: GameSession) => void
+  clearStats: () => void
+  exportStats: () => string
+  importStats: (data: string) => void
+  
+  // Internal methods
+  updateAchievements: (newSession?: GameSession) => void
 }
 
-const StatsContext = createContext<StatsContextType | undefined>(undefined)
+export const useStatsStore = create<StatsStore>()(
+  persist(
+    (set, get) => ({
+      stats: initialStats,
+      achievements: defaultAchievements,
 
-export { StatsContext }
+      addGameSession: (session) => {
+        const currentStats = get().stats
+        const newSessions = [...currentStats.sessions, session]
+        const updatedStats = calculateStats(newSessions)
+        
+        set({ stats: updatedStats })
+        
+        // Check for achievements after updating stats
+        get().updateAchievements(session)
+      },
 
-export const StatsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [stats, dispatch] = useReducer(statsReducer, initialStats)
-  const [achievements, setAchievements] = React.useState<Achievement[]>(defaultAchievements)
+      clearStats: () => {
+        set({ 
+          stats: initialStats, 
+          achievements: defaultAchievements.map(a => ({ ...a, unlocked: false, unlockedDate: undefined }))
+        })
+      },
 
-  // Load stats from localStorage on mount
-  useEffect(() => {
-    const savedStats = localStorage.getItem('dual-n-back-stats')
-    if (savedStats) {
-      try {
-        const parsedStats = JSON.parse(savedStats)
-        dispatch({ type: 'LOAD_STATS', payload: parsedStats })
-      } catch (error) {
-        console.error('Failed to load stats from localStorage:', error)
-      }
-    }
+      exportStats: () => {
+        const { stats, achievements } = get()
+        return JSON.stringify({ stats, achievements }, null, 2)
+      },
 
-    const savedAchievements = localStorage.getItem('dual-n-back-achievements')
-    if (savedAchievements) {
-      try {
-        const parsedAchievements = JSON.parse(savedAchievements)
-        const restoredAchievements = restoreAchievementConditions(parsedAchievements)
-        setAchievements(restoredAchievements)
-      } catch (error) {
-        console.error('Failed to load achievements from localStorage:', error)
-      }
-    }
-  }, [])
-
-  // Save stats to localStorage when stats change
-  useEffect(() => {
-    localStorage.setItem('dual-n-back-stats', JSON.stringify(stats))
-  }, [stats])
-
-  // Save achievements to localStorage when they change
-  useEffect(() => {
-    localStorage.setItem('dual-n-back-achievements', JSON.stringify(achievements))
-  }, [achievements])
-
-  // Check for new achievements when stats change
-  useEffect(() => {
-    const updatedAchievements = achievements.map(achievement => {
-      if (!achievement.unlocked && achievement.condition && achievement.condition(stats)) {
-        return {
-          ...achievement,
-          unlocked: true,
-          unlockedDate: Date.now(),
+      importStats: (data) => {
+        try {
+          const parsed = JSON.parse(data)
+          if (parsed.stats) {
+            set({ stats: parsed.stats })
+          }
+          if (parsed.achievements) {
+            const restoredAchievements = restoreAchievementConditions(parsed.achievements)
+            set({ achievements: restoredAchievements })
+          }
+        } catch (error) {
+          console.error('Failed to import stats:', error)
+          throw new Error('Invalid stats data format')
         }
-      }
-      return achievement
-    })
+      },
 
-    if (JSON.stringify(updatedAchievements) !== JSON.stringify(achievements)) {
-      setAchievements(updatedAchievements)
-    }
-  }, [stats, achievements])
+      updateAchievements: (newSession) => {
+        const { stats, achievements } = get()
+        
+        const updatedAchievements = achievements.map(achievement => {
+          if (!achievement.unlocked && achievement.condition) {
+            // Check both general stats and session-specific conditions
+            const shouldUnlock = achievement.condition(stats, newSession) || achievement.condition(stats)
+            
+            if (shouldUnlock) {
+              return {
+                ...achievement,
+                unlocked: true,
+                unlockedDate: Date.now(),
+              }
+            }
+          }
+          return achievement
+        })
 
-  const addGameSession = useCallback((session: GameSession) => {
-    dispatch({ type: 'ADD_SESSION', payload: session })
-    
-    // Check for session-specific achievements
-    const updatedAchievements = achievements.map(achievement => {
-      if (!achievement.unlocked && achievement.condition && achievement.condition(stats, session)) {
-        return {
-          ...achievement,
-          unlocked: true,
-          unlockedDate: Date.now(),
+        // Only update if there are changes
+        const hasChanges = updatedAchievements.some((achievement, index) => 
+          achievement.unlocked !== achievements[index].unlocked
+        )
+
+        if (hasChanges) {
+          set({ achievements: updatedAchievements })
         }
-      }
-      return achievement
-    })
-    
-    if (JSON.stringify(updatedAchievements) !== JSON.stringify(achievements)) {
-      setAchievements(updatedAchievements)
+      },
+    }),
+    {
+      name: 'dual-n-back-stats',
+      partialize: (state) => ({
+        stats: state.stats,
+        achievements: state.achievements.map(a => ({
+          ...a,
+          condition: undefined, // Don't persist functions
+        })),
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (state?.achievements) {
+          // Restore condition functions after hydration
+          state.achievements = restoreAchievementConditions(state.achievements)
+        }
+      },
     }
-  }, [stats, achievements])
-
-  const clearStats = useCallback(() => {
-    dispatch({ type: 'CLEAR_STATS' })
-    setAchievements(defaultAchievements)
-    localStorage.removeItem('dual-n-back-stats')
-    localStorage.removeItem('dual-n-back-achievements')
-  }, [])
-
-  const exportStats = useCallback(() => {
-    return JSON.stringify({ stats, achievements }, null, 2)
-  }, [stats, achievements])
-
-  const importStats = useCallback((data: string) => {
-    try {
-      const parsed = JSON.parse(data)
-      if (parsed.stats) {
-        dispatch({ type: 'LOAD_STATS', payload: parsed.stats })
-      }
-      if (parsed.achievements) {
-        const restoredAchievements = restoreAchievementConditions(parsed.achievements)
-        setAchievements(restoredAchievements)
-      }
-    } catch (error) {
-      console.error('Failed to import stats:', error)
-      throw new Error('Invalid stats data format')
-    }
-  }, [])
-
-  const value: StatsContextType = {
-    stats,
-    achievements,
-    addGameSession,
-    clearStats,
-    exportStats,
-    importStats,
-  }
-
-  return <StatsContext.Provider value={value}>{children}</StatsContext.Provider>
-}
+  )
+)

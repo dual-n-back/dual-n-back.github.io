@@ -29,13 +29,13 @@ import {
   DeleteForever as ClearIcon,
   Science as TestIcon,
 } from '@mui/icons-material'
-import { useGame } from '../../hooks/useGame'
-import { useStats } from '../../hooks/useStats'
+import { useGameStore } from '../../stores/gameStore'
+import { useStatsStore } from '../../stores/statsStore'
 import { testAudio, preloadAudio } from '../../utils/audioManager'
 
 const Settings: React.FC = () => {
-  const { settings, updateSettings } = useGame()
-  const { clearStats, exportStats, importStats } = useStats()
+  const { settings, updateSettings } = useGameStore()
+  const { clearStats, exportStats, importStats } = useStatsStore()
   const theme = useTheme()
   
   const [showClearDialog, setShowClearDialog] = useState(false)

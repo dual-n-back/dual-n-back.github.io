@@ -58,6 +58,7 @@ interface GameStore extends GameState {
   
   // Response handling
   submitResponse: (type?: ResponseType) => void
+  submitResponseIfValid: (type: ResponseType) => void
   
   // Computed values
   currentStimulus: () => GameSequence | null
@@ -261,6 +262,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
         audio: type === 'audio' ? correct : undefined,
       }
     })
+  },
+
+  submitResponseIfValid: (type) => {
+    const { currentStimulusIndex, nLevel, waitingForResponse } = get()
+    const nBackIndex = currentStimulusIndex - nLevel
+    
+    if (nBackIndex >= 0 && waitingForResponse) {
+      get().submitResponse(type)
+    }
   },
 
   // Computed values

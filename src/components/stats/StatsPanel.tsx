@@ -24,11 +24,11 @@ import {
   Psychology as BrainIcon,
   Whatshot as StreakIcon,
 } from '@mui/icons-material'
-import { useStats } from '../../hooks/useStats'
+import { useStatsStore } from '../../stores/statsStore'
 import { formatDuration, formatPercentage, getDifficultyLevel } from '../../utils/gameLogic'
 
 const StatsPanel: React.FC = () => {
-  const { stats, achievements } = useStats()
+  const { stats, achievements } = useStatsStore()
   const theme = useTheme()
 
   const unlockedAchievements = achievements.filter(a => a.unlocked)

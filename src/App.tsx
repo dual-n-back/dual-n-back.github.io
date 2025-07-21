@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Box, Container } from '@mui/material'
-import { StatsProvider } from './contexts/StatsContext'
+import { useGameFlow } from './hooks/useGameFlow'
 import Header from './components/layout/Header'
 import Navigation from './components/layout/Navigation'
 import GameBoard from './components/game/GameBoard'
@@ -14,6 +14,9 @@ type ViewType = 'game' | 'stats' | 'settings' | 'tutorial'
 
 function App() {
   const [currentView, setCurrentView] = useState<ViewType>('game')
+  
+  // Initialize game flow (timers and keyboard controls)
+  useGameFlow()
 
   const renderCurrentView = () => {
     switch (currentView) {
@@ -36,33 +39,31 @@ function App() {
   }
 
   return (
-    <StatsProvider>
-      <Box
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        bgcolor: 'background.default',
+      }}
+    >
+      <Header />
+      <Navigation currentView={currentView} onViewChange={setCurrentView} />
+      
+      <Container
+        maxWidth="lg"
         sx={{
-          minHeight: '100vh',
+          flex: 1,
+          py: 3,
           display: 'flex',
           flexDirection: 'column',
-          bgcolor: 'background.default',
         }}
       >
-        <Header />
-        <Navigation currentView={currentView} onViewChange={setCurrentView} />
-        
-        <Container
-          maxWidth="lg"
-          sx={{
-            flex: 1,
-            py: 3,
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          {renderCurrentView()}
-        </Container>
-        
-        <Footer />
-      </Box>
-    </StatsProvider>
+        {renderCurrentView()}
+      </Container>
+      
+      <Footer />
+    </Box>
   )
 }
 

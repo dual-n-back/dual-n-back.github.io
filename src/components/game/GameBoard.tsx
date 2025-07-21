@@ -9,18 +9,26 @@ import {
   alpha,
   useTheme,
 } from '@mui/material'
-import { useGame } from '../../hooks/useGame'
+import { useGameStore } from '../../stores/gameStore'
 import { playAudioTone } from '../../utils/audioManager'
 import { indexToRowCol } from '../../utils/gameLogic'
 
 const GameBoard: React.FC = () => {
-  const { state, settings, currentStimulus } = useGame()
+  const { 
+    isPlaying,
+    currentRound,
+    nLevel,
+    gamePhase,
+    settings,
+  } = useGameStore()
+  
+  const currentStimulus = useGameStore.getState().currentStimulus()
   const theme = useTheme()
   const [activePosition, setActivePosition] = useState<number | null>(null)
 
   // Effect to handle stimulus presentation
   useEffect(() => {
-    if (!currentStimulus || state.gamePhase !== 'stimulus') {
+    if (!currentStimulus || gamePhase !== 'stimulus') {
       setActivePosition(null)
       return
     }
@@ -46,7 +54,7 @@ const GameBoard: React.FC = () => {
     }, settings.stimulusDuration)
 
     return () => clearTimeout(timer)
-  }, [currentStimulus, state.gamePhase, settings])
+  }, [currentStimulus, gamePhase, settings])
 
   const renderGridCell = useCallback((index: number) => {
     const { row, col } = indexToRowCol(index, settings.gridSize)
@@ -96,7 +104,7 @@ const GameBoard: React.FC = () => {
     )
   }, [activePosition, settings.gridSize, theme])
 
-  if (!state.isPlaying && state.currentRound === 0) {
+  if (!isPlaying && currentRound === 0) {
     return (
       <Fade in={true}>
         <Paper
@@ -115,7 +123,7 @@ const GameBoard: React.FC = () => {
             Click "Start Game" to begin your Dual N-Back training session.
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            You'll need to identify when stimuli match those from {state.nLevel} steps back.
+            You'll need to identify when stimuli match those from {nLevel} steps back.
           </Typography>
         </Paper>
       </Fade>
