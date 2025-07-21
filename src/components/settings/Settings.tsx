@@ -34,7 +34,7 @@ import { useStatsStore } from '../../stores/statsStore'
 import { testAudio, preloadAudio } from '../../utils/audioManager'
 
 const Settings: React.FC = () => {
-  const { settings, updateSettings } = useGameStore()
+  const { settings, updateSettings, adaptiveMode, toggleAdaptiveMode } = useGameStore()
   const { clearStats, exportStats, importStats } = useStatsStore()
   const theme = useTheme()
   
@@ -182,6 +182,23 @@ const Settings: React.FC = () => {
                       />
                     }
                     label="Auto-advance to next stimulus"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={adaptiveMode}
+                        onChange={toggleAdaptiveMode}
+                        color="secondary"
+                      />
+                    }
+                    label={
+                      <Box>
+                        <Typography component="span">🧠 Adaptive Difficulty</Typography>
+                        <Typography variant="caption" display="block" color="text.secondary">
+                          AI adjusts difficulty based on your performance
+                        </Typography>
+                      </Box>
+                    }
                   />
                 </Box>
               </Box>

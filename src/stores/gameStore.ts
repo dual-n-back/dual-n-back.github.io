@@ -1,6 +1,12 @@
 import { create } from 'zustand'
 import { GameState, GameSettings, GameSequence, ResponseType } from '../types/game'
-import { generateEngagingSequence } from '../utils/gameLogic'
+import { 
+  generateEngagingSequence, 
+  generateAdaptiveSequence, 
+  createPerformanceSnapshot, 
+  analyzeAdaptiveTriggers, 
+  type PerformanceSnapshot 
+} from '../utils/gameLogic'
 import { preloadAudio } from '../utils/audioManager'
 
 const defaultSettings: GameSettings = {
@@ -44,6 +50,8 @@ const initialGameState: Omit<GameState, 'nLevel' | 'totalRounds'> = {
 
 interface GameStore extends GameState {
   settings: GameSettings
+  performanceHistory: PerformanceSnapshot[]
+  adaptiveMode: boolean
   
   // Actions
   startGame: () => void
@@ -54,6 +62,7 @@ interface GameStore extends GameState {
   resetGame: () => void
   updateSettings: (newSettings: Partial<GameSettings>) => void
   setSequence: (sequence: GameSequence[]) => void
+  toggleAdaptiveMode: () => void
   
   // Stimulus management
   presentStimulus: (index: number) => void
@@ -74,6 +83,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   nLevel: defaultSettings.nLevel,
   totalRounds: defaultSettings.totalRounds,
   settings: defaultSettings,
+  performanceHistory: [],
+  adaptiveMode: true, // Enable adaptive difficulty by default
 
   // Actions
   startGame: () => {
@@ -82,13 +93,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Determine difficulty based on nLevel for optimal engagement
     const difficulty = state.nLevel <= 2 ? 'easy' : state.nLevel <= 4 ? 'medium' : 'hard'
     
-    // Generate engaging sequence with balanced match opportunities
-    const sequence = generateEngagingSequence(
-      state.totalRounds + state.nLevel, 
-      state.settings.gridSize,
-      state.nLevel,
-      difficulty
-    )
+    // Generate sequence using adaptive algorithm if enabled
+    const sequence = state.adaptiveMode 
+      ? generateAdaptiveSequence(
+          state.totalRounds + state.nLevel, 
+          state.settings.gridSize,
+          state.nLevel,
+          difficulty,
+          state.performanceHistory
+        )
+      : generateEngagingSequence(
+          state.totalRounds + state.nLevel, 
+          state.settings.gridSize,
+          state.nLevel,
+          difficulty
+        )
     
     // Preload audio to ensure voices are ready
     preloadAudio().catch(console.error)
@@ -164,6 +183,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       nLevel: newSettings.nLevel ?? get().nLevel,
       totalRounds: newSettings.totalRounds ?? get().totalRounds,
     })
+  },
+
+  toggleAdaptiveMode: () => {
+    const current = get().adaptiveMode
+    set({ adaptiveMode: !current })
+    console.log(`🧠 Adaptive Difficulty: ${!current ? 'ENABLED' : 'DISABLED'}`)
   },
 
   setSequence: (sequence) => set({ sequence }),
@@ -296,6 +321,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
         audio: type === 'audio' ? correct : undefined,
       }
     })
+
+    // Adaptive difficulty: Create performance snapshot and analyze triggers
+    const updatedState = get()
+    if (updatedState.adaptiveMode && updatedState.responses.length % 5 === 0) {
+      const snapshot = createPerformanceSnapshot(updatedState.responses, 10)
+      const newPerformanceHistory = [...updatedState.performanceHistory, snapshot]
+      
+      // Analyze if difficulty should be adjusted
+      const triggers = analyzeAdaptiveTriggers(newPerformanceHistory, updatedState.nLevel)
+      
+      set({ 
+        performanceHistory: newPerformanceHistory.slice(-20) // Keep last 20 snapshots
+      })
+      
+      // Log adaptive insights for debugging
+      if (triggers.shouldAdjust) {
+        console.log(`🧠 Adaptive AI: ${triggers.reason} (${triggers.urgency} urgency) - Recommend: ${triggers.recommendedAction}`)
+      }
+    }
   },
 
   submitResponseIfValid: (type) => {
