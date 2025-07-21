@@ -27,7 +27,6 @@ import {
   Visibility as VisualIcon,
   VolumeUp as AudioIcon,
   TouchApp as TouchIcon,
-  Timer as TimerIcon,
   TrendingUp as ProgressIcon,
   Lightbulb as TipIcon,
   CheckCircle as CheckIcon,
