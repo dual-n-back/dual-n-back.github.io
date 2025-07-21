@@ -1,10 +1,49 @@
-import { useContext } from 'react'
-import { GameContext } from '../contexts/GameContext'
+import { useGameStore } from '../stores/gameStore'
+import { useGameFlow } from './useGameFlow'
+import { ResponseType } from '../types/game'
 
 export const useGame = () => {
-  const context = useContext(GameContext)
-  if (context === undefined) {
-    throw new Error('useGame must be used within a GameProvider')
+  const store = useGameStore()
+  
+  // Initialize game flow (timers and keyboard controls)
+  useGameFlow()
+  
+  // Create a simplified submitResponse that checks conditions
+  const submitResponse = (responseType: ResponseType) => {
+    const { currentStimulusIndex, nLevel, waitingForResponse } = store
+    const nBackIndex = currentStimulusIndex - nLevel
+    
+    if (nBackIndex >= 0 && waitingForResponse) {
+      store.submitResponse(responseType)
+    }
   }
-  return context
+
+  return {
+    state: {
+      isPlaying: store.isPlaying,
+      isPaused: store.isPaused,
+      currentRound: store.currentRound,
+      totalRounds: store.totalRounds,
+      nLevel: store.nLevel,
+      sequence: store.sequence,
+      currentStimulusIndex: store.currentStimulusIndex,
+      gamePhase: store.gamePhase,
+      waitingForResponse: store.waitingForResponse,
+      responseDeadline: store.responseDeadline,
+      responses: store.responses,
+      score: store.score,
+      gameStartTime: store.gameStartTime,
+      gameEndTime: store.gameEndTime,
+      feedback: store.feedback,
+    },
+    settings: store.settings,
+    currentStimulus: store.currentStimulus(),
+    startGame: store.startGame,
+    pauseGame: store.pauseGame,
+    resumeGame: store.resumeGame,
+    stopGame: store.stopGame,
+    submitResponse,
+    updateSettings: store.updateSettings,
+    resetGame: store.resetGame,
+  }
 }

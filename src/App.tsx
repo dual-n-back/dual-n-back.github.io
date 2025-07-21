@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Box, Container } from '@mui/material'
-import { GameProvider } from './contexts/GameContext'
 import { StatsProvider } from './contexts/StatsContext'
 import Header from './components/layout/Header'
 import Navigation from './components/layout/Navigation'
@@ -37,35 +36,33 @@ function App() {
   }
 
   return (
-    <GameProvider>
-      <StatsProvider>
-        <Box
+    <StatsProvider>
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          bgcolor: 'background.default',
+        }}
+      >
+        <Header />
+        <Navigation currentView={currentView} onViewChange={setCurrentView} />
+        
+        <Container
+          maxWidth="lg"
           sx={{
-            minHeight: '100vh',
+            flex: 1,
+            py: 3,
             display: 'flex',
             flexDirection: 'column',
-            bgcolor: 'background.default',
           }}
         >
-          <Header />
-          <Navigation currentView={currentView} onViewChange={setCurrentView} />
-          
-          <Container
-            maxWidth="lg"
-            sx={{
-              flex: 1,
-              py: 3,
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
-            {renderCurrentView()}
-          </Container>
-          
-          <Footer />
-        </Box>
-      </StatsProvider>
-    </GameProvider>
+          {renderCurrentView()}
+        </Container>
+        
+        <Footer />
+      </Box>
+    </StatsProvider>
   )
 }
 
