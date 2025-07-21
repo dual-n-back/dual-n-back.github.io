@@ -60,8 +60,7 @@ const Header: React.FC = () => {
               size="medium"
               sx={{ color: 'white' }}
               onClick={() => {
-                // This could open a modal or navigate to info page
-                console.log('Show info')
+                window.open('https://en.wikipedia.org/wiki/N-back', '_blank')
               }}
             >
               <InfoIcon />
