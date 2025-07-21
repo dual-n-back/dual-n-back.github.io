@@ -393,8 +393,7 @@ export const generateAdaptiveSequence = (
       segmentAudioMatches,
       segmentSettings.maxConsecutive,
       segmentSettings.minGap,
-      nLevel,
-      segmentSettings.overlapBonus
+      nLevel
     )
     
     // Add pattern-breaking for this segment
@@ -494,8 +493,7 @@ export const generateEngagingSequence = (
     targetAudioMatches,
     settings.maxConsecutive,
     settings.minGap,
-    nLevel,
-    settings.overlapBonus
+    nLevel
   )
   
   // Add pattern-breaking to prevent predictability while considering n-level
@@ -568,8 +566,104 @@ const calculateBellCurveWeight = (position: number, length: number): number => {
 }
 
 /**
- * Creates an engaging but unpredictable pattern that varies match types and timing
- * Uses bell curve weighted placement to favor middle positions and avoid edge clustering
+ * Checks if a position is valid for placing a match
+ */
+const isValidPosition = (
+  pattern: boolean[],
+  position: number,
+  lastPlaced: number,
+  minGap: number,
+  maxConsecutive: number,
+  existingPattern?: boolean[],
+  avoidOverlap = false
+): boolean => {
+  // Check gap constraint
+  if (position - lastPlaced <= minGap) return false
+  
+  // Check overlap constraint
+  if (avoidOverlap && existingPattern?.[position]) return false
+  
+  // Check consecutive constraint
+  let consecutive = 0
+  for (let i = position - 1; i >= 0 && pattern[i]; i--) consecutive++
+  
+  return consecutive < maxConsecutive
+}
+
+/**
+ * Places matches in a pattern array with constraints and bell curve bias
+ */
+const placeMatches = (
+  length: number,
+  targetMatches: number,
+  maxConsecutive: number,
+  minGap: number,
+  useBellCurve = true,
+  avoidOverlap = false,
+  existingPattern?: boolean[]
+): boolean[] => {
+  const pattern = new Array(length).fill(false)
+  let placed = 0
+  let lastPlaced = -minGap - 1
+  
+  // Create weighted slot pool
+  const slots = Array.from({ length }, (_, i) => ({
+    index: i,
+    weight: useBellCurve ? calculateBellCurveWeight(i, length) : 1
+  }))
+  
+  // Shuffle slots for randomness
+  for (let i = slots.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [slots[i], slots[j]] = [slots[j], slots[i]]
+  }
+
+  // Place matches using weighted probabilities
+  for (const slot of slots) {
+    if (placed >= targetMatches) break
+    
+    if (!isValidPosition(pattern, slot.index, lastPlaced, minGap, maxConsecutive, existingPattern, avoidOverlap)) {
+      continue
+    }
+    
+    // Apply bell curve weighting if enabled
+    const placementProbability = useBellCurve 
+      ? slot.weight * (1.2 - placed / targetMatches)
+      : 1.0
+    
+    if (Math.random() < placementProbability) {
+      pattern[slot.index] = true
+      placed++
+      lastPlaced = slot.index
+    }
+  }
+
+  // Fill remaining matches with best available positions
+  while (placed < targetMatches) {
+    const remainingSlots = slots.filter(slotData => {
+      const slot = slotData.index
+      return !pattern[slot] && 
+        isValidPosition(pattern, slot, lastPlaced, minGap, maxConsecutive, existingPattern, avoidOverlap)
+    })
+    
+    if (remainingSlots.length === 0) break
+    
+    // Choose highest weighted remaining slot
+    const bestSlot = remainingSlots.reduce((best, current) => 
+      current.weight > best.weight ? current : best
+    )
+    
+    pattern[bestSlot.index] = true
+    placed++
+    lastPlaced = bestSlot.index
+  }
+
+  return pattern
+}
+
+/**
+ * Creates an engaging pattern with simplified logic
+ * Uses bell curve weighted placement to favor middle positions
  */
 const createEngagementPattern = (
   length: number,
@@ -577,134 +671,29 @@ const createEngagementPattern = (
   audioMatches: number,
   maxConsecutive: number,
   minGap: number,
-  nLevel: number = 2,
-  overlapBonus: number = 0.1
+  nLevel: number = 2
 ): { position: boolean[], audio: boolean[] } => {
-  const position = new Array(length).fill(false)
-  const audio = new Array(length).fill(false)
-  
-  // Create weighted placement pools favoring middle positions
-  const availableSlots = Array.from({ length }, (_, i) => ({
-    index: i,
-    weight: calculateBellCurveWeight(i, length)
-  }))
-  
-  // Shuffle while preserving weights for randomness with bias
-  for (let i = availableSlots.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [availableSlots[i], availableSlots[j]] = [availableSlots[j], availableSlots[i]]
-  }
-  
-  // Place position matches with bell curve weighted spacing
-  let placedPosition = 0
-  let lastPositionIndex = -minGap - 1
-  
-  for (const slotData of availableSlots) {
-    if (placedPosition >= positionMatches) break
-    
-    const slot = slotData.index
-    const weight = slotData.weight
-    
-    // Check if slot is valid for position match
-    if (slot - lastPositionIndex > minGap) {
-      // Apply bell curve weighting to placement probability
-      const baseProb = 1.2 - (placedPosition / positionMatches)
-      const weightedProb = baseProb * weight
-      
-      if (Math.random() < weightedProb) {
-        // Check consecutive constraint
-        let consecutive = 0
-        for (let j = slot - 1; j >= 0 && position[j]; j--) {
-          consecutive++
-        }
-        
-        if (consecutive < maxConsecutive) {
-          position[slot] = true
-          placedPosition++
-          lastPositionIndex = slot
-        }
-      }
-    }
-  }
-  
-  // Place audio matches with different bell curve weighted randomization
-  const audioShuffled = [...availableSlots].sort(() => Math.random() - 0.5)
-  let placedAudio = 0
-  let lastAudioIndex = -minGap - 1
-  
-  for (const slotData of audioShuffled) {
-    if (placedAudio >= audioMatches) break
-    
-    const slot = slotData.index
-    const weight = slotData.weight
-    
-    // Check if slot is valid for audio match
-    if (slot - lastAudioIndex > minGap) {
-      // Smart overlap handling with bell curve weighting
-      const hasPositionMatch = position[slot]
-      const overlapEncouragement = hasPositionMatch ? (nLevel >= 3 ? overlapBonus : -0.2) : 0
-      const randomFactor = Math.random() * 0.4 + 0.6 // 0.6 to 1.0
-      const baseProb = (1.1 - (placedAudio / audioMatches)) * randomFactor + overlapEncouragement
-      const weightedProb = baseProb * weight
-      
-      if (Math.random() < weightedProb) {
-        // Check consecutive constraint
-        let consecutive = 0
-        for (let j = slot - 1; j >= 0 && audio[j]; j--) {
-          consecutive++
-        }
-        
-        if (consecutive < maxConsecutive) {
-          audio[slot] = true
-          placedAudio++
-          lastAudioIndex = slot
-        }
-      }
-    }
-  }
-  
-  // Fill remaining matches with anti-pattern logic and bell curve preference
-  while (placedPosition < positionMatches) {
-    const remainingSlots = availableSlots.filter(slotData => {
-      const slot = slotData.index
-      return !position[slot] && 
-        slot > lastPositionIndex + minGap &&
-        getConsecutiveCount(position, slot) < maxConsecutive
-    })
-    
-    if (remainingSlots.length === 0) break
-    
-    // Choose a weighted slot that breaks patterns
-    const weightedChoice = remainingSlots.reduce((best, current) => 
-      current.weight > best.weight ? current : best
-    )
-    const slot = weightedChoice.index
-    position[slot] = true
-    placedPosition++
-    lastPositionIndex = slot
-  }
-  
-  
-  while (placedAudio < audioMatches) {
-    const remainingSlots = availableSlots.filter(slotData => {
-      const slot = slotData.index
-      return !audio[slot] && 
-        slot > lastAudioIndex + minGap &&
-        getConsecutiveCount(audio, slot) < maxConsecutive
-    })
-    
-    if (remainingSlots.length === 0) break
-    
-    // Choose a weighted slot that breaks patterns
-    const weightedChoice = remainingSlots.reduce((best, current) => 
-      current.weight > best.weight ? current : best
-    )
-    const slot = weightedChoice.index
-    audio[slot] = true
-    placedAudio++
-    lastAudioIndex = slot
-  }
-  
+  // Generate position matches with bell curve bias
+  const position = placeMatches(
+    length,
+    positionMatches,
+    maxConsecutive,
+    minGap,
+    true // useBellCurve
+  )
+
+  // Generate audio matches with some overlap avoidance for lower n-levels
+  const shouldAvoidOverlap = nLevel < 3
+  const audio = placeMatches(
+    length,
+    audioMatches,
+    maxConsecutive,
+    minGap,
+    true, // useBellCurve
+    shouldAvoidOverlap,
+    position
+  )
+
   return { position, audio }
 }
 
@@ -815,25 +804,6 @@ const addPatternBreaking = (
   }
   
   return { position, audio }
-}
-
-/**
- * Helper function to count consecutive matches that would result from placing a match at given position
- */
-const getConsecutiveCount = (pattern: boolean[], index: number): number => {
-  let count = 1 // The match we're about to place
-  
-  // Count backwards
-  for (let i = index - 1; i >= 0 && pattern[i]; i--) {
-    count++
-  }
-  
-  // Count forwards
-  for (let i = index + 1; i < pattern.length && pattern[i]; i++) {
-    count++
-  }
-  
-  return count
 }
 
 /**

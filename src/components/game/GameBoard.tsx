@@ -214,9 +214,31 @@ const GameBoard: React.FC = () => {
           <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
             Click "Start Game" to begin your Dual N-Back training session.
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             You'll need to identify when stimuli match those from {nLevel} steps back.
           </Typography>
+          
+          {/* Advanced Algorithm Features */}
+          <Box sx={{ 
+            mt: 3, 
+            mb: 2, 
+            p: 2, 
+            backgroundColor: alpha(theme.palette.info.main, 0.05), 
+            borderRadius: 1,
+            maxWidth: '500px',
+            mx: 'auto'
+          }}>
+            <Typography variant="h6" color="info.main" sx={{ mb: 1, fontSize: '0.9rem', textAlign: 'center' }}>
+              🧠 Advanced AI Training Algorithm
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem', lineHeight: 1.4, textAlign: 'left' }}>
+              • <strong>Adaptive Difficulty:</strong> Real-time performance analysis adjusts challenge level<br/>
+              • <strong>Bell Curve Distribution:</strong> Smart pattern placement prevents edge clustering<br/>
+              • <strong>Cognitive Load Optimization:</strong> N-level aware overlap strategies (20-70% scaling)<br/>
+              • <strong>Performance Tracking:</strong> Snapshots every 5 responses with trend analysis<br/>
+              • <strong>Research-Based:</strong> Helps improve ADHD symptoms and boost brain activity
+            </Typography>
+          </Box>
         </Paper>
       </Fade>
     )
