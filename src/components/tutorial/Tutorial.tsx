@@ -172,37 +172,44 @@ const tutorialSteps = [
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                   <TouchIcon color="primary" sx={{ mr: 1 }} />
-                  <Typography variant="h6">Response Buttons</Typography>
+                  <Typography variant="h6">Response Controls</Typography>
                 </Box>
-                <Typography variant="body2" paragraph>
-                  Use the "Match" and "No Match" buttons to respond to each stimulus type.
+
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+                  <Chip label="🔲 Position Match" color="primary" size="small" />
+                  <Chip label="🔊 Audio Match" color="secondary" size="small" />
+                </Box>
+                <Typography variant="body2">
+                  Click the grid icon for position matches or speaker icon for audio matches. 
+                  Buttons change color based on feedback (green=correct, red=incorrect).
                 </Typography>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  <Chip label="Position Match" color="success" size="small" />
-                  <Chip label="Position No Match" color="error" size="small" />
-                  <Chip label="Audio Match" color="success" size="small" />
-                  <Chip label="Audio No Match" color="error" size="small" />
-                </Box>
               </CardContent>
             </Card>
           </Grid>
           
-          <Grid item xs={12} md={6}>
-            <Card elevation={1}>
+
+          
+          <Grid item xs={12}>
+            <Card elevation={1} sx={{ backgroundColor: alpha('#2196f3', 0.05) }}>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <TimerIcon color="warning" sx={{ mr: 1 }} />
-                  <Typography variant="h6">Game Controls</Typography>
+                  <BrainIcon color="primary" sx={{ mr: 1 }} />
+                  <Typography variant="h6">🧠 NEW: Adaptive Difficulty</Typography>
                 </Box>
                 <Typography variant="body2" paragraph>
-                  Control the game flow with these buttons:
+                  Revolutionary AI-powered training system (enabled by default):
                 </Typography>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  <Chip label="Start Game" color="primary" size="small" />
-                  <Chip label="Pause" color="warning" size="small" />
-                  <Chip label="Stop" color="error" size="small" />
-                  <Chip label="Reset" variant="outlined" size="small" />
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+                  <Chip label="📊 Real-time Analysis" color="info" size="small" />
+                  <Chip label="🎯 Dynamic Adjustment" color="info" size="small" />
+                  <Chip label="🔔 Bell Curve Distribution" color="info" size="small" />
+                  <Chip label="⚡ Performance Tracking" color="info" size="small" />
                 </Box>
+                <Typography variant="body2">
+                  The system automatically adjusts difficulty based on your performance, 
+                  prevents pattern clustering, and provides research-based ADHD benefits. 
+                  Toggle in Settings → Advanced Options.
+                </Typography>
               </CardContent>
             </Card>
           </Grid>

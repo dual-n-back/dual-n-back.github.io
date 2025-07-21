@@ -211,6 +211,9 @@ const GameBoard: React.FC = () => {
           <Typography variant="h5" gutterBottom color="text.secondary">
             Ready to Train Your Brain?
           </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontStyle: 'italic' }}>
+            💡 New to the game? Visit the <strong>Tutorial</strong> tab for complete instructions and tips!
+          </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
             Click "Start Game" to begin your Dual N-Back training session.
           </Typography>
