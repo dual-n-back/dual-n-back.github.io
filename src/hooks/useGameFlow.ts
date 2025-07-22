@@ -15,7 +15,7 @@ export const useGameFlow = () => {
 
   // Game flow management
   useEffect(() => {
-    if (!isPlaying || isPaused) return
+    if (!isPlaying || isPaused || gamePhase === 'preparation') return
 
     let timer: ReturnType<typeof setTimeout>
 

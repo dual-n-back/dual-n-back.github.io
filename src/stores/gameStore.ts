@@ -118,7 +118,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       isPaused: false,
       currentRound: 0,
       currentStimulusIndex: 0,
-      gamePhase: 'stimulus',
+      gamePhase: 'preparation',
       waitingForResponse: false,
       responseDeadline: null,
       gameStartTime: Date.now(),

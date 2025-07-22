@@ -96,7 +96,7 @@ export interface GridPosition {
   index: number
 }
 
-export type GamePhase = 'waiting' | 'stimulus' | 'response' | 'feedback' | 'completed'
+export type GamePhase = 'preparation' | 'waiting' | 'stimulus' | 'response' | 'feedback' | 'completed'
 
 export type ResponseType = 'position' | 'audio'
 

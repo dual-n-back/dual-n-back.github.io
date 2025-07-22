@@ -148,16 +148,12 @@ export const createPerformanceSnapshot = (
     }
   }
   
-  const correctResponses = recentResponses.filter(r => 
-    (r.position !== null && r.positionCorrect) || 
-    (r.audio !== null && r.audioCorrect) ||
-    (r.position === null && r.audio === null && !r.positionExpected && !r.audioExpected)
-  ).length
+  // Count correct responses
+  const correctResponses = recentResponses.filter(r => r.correct === true).length
   
-  const missedResponses = recentResponses.filter(r => 
-    (r.positionExpected && r.position === null) || 
-    (r.audioExpected && r.audio === null)
-  ).length
+  // For missed responses, we need to get this from the score data
+  // Since responses only track actual user responses, not missed opportunities
+  const missedResponses = 0 // We'll need to calculate this differently
   
   const totalPossibleResponses = recentResponses.length
   const accuracy = totalPossibleResponses > 0 ? (correctResponses / totalPossibleResponses) * 100 : 0

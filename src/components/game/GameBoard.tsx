@@ -8,7 +8,12 @@ import {
   Zoom,
   alpha,
   useTheme,
+  Button,
 } from '@mui/material'
+import {
+  TrendingUp as LevelUpIcon,
+  Celebration as CelebrationIcon,
+} from '@mui/icons-material'
 import { useGameStore } from '../../stores/gameStore'
 import { playAudioTone } from '../../utils/audioManager'
 import { indexToRowCol, calculateAccuracy } from '../../utils/gameLogic'
@@ -22,16 +27,49 @@ const GameBoard: React.FC = () => {
     settings,
     score,
     currentStimulusIndex,
+    updateSettings,
+    resetGame,
   } = useGameStore()
   
   const theme = useTheme()
   const [activePosition, setActivePosition] = useState<number | null>(null)
+  const [preparationTime, setPreparationTime] = useState<number | null>(null)
+
+  // Effect to handle game preparation countdown
+  useEffect(() => {
+    // Only start countdown if we're playing and in preparation phase without existing countdown
+    if (isPlaying && gamePhase === 'preparation' && preparationTime === null) {
+      setPreparationTime(3) // Start with 3 seconds (3, 2, 1, GO!)
+      
+      const countdown = setInterval(() => {
+        setPreparationTime(prev => {
+          if (prev === null || prev <= 1) {
+            clearInterval(countdown)
+            // After countdown finishes, transition to first stimulus
+            setTimeout(() => {
+              setPreparationTime(null)
+              const gameStore = useGameStore.getState()
+              gameStore.presentStimulus(0)
+            }, 500) // Brief delay after "GO!" message
+            return null
+          }
+          return prev - 1
+        })
+      }, 1000)
+      
+      return () => {
+        clearInterval(countdown)
+      }
+    } else if (!isPlaying || (gamePhase !== 'preparation' && preparationTime !== null)) {
+      setPreparationTime(null)
+    }
+  }, [isPlaying, gamePhase])
 
   // Effect to handle stimulus presentation
   useEffect(() => {
     const currentStimulus = useGameStore.getState().currentStimulus()
     
-    if (!currentStimulus || gamePhase !== 'stimulus') {
+    if (!currentStimulus || gamePhase !== 'stimulus' || preparationTime !== null) {
       setActivePosition(null)
       return
     }
@@ -57,7 +95,7 @@ const GameBoard: React.FC = () => {
     }, settings.stimulusDuration)
 
     return () => clearTimeout(timer)
-  }, [currentStimulusIndex, gamePhase, settings])
+  }, [currentStimulusIndex, gamePhase, settings, preparationTime])
 
   const renderGridCell = useCallback((index: number) => {
     const { row, col } = indexToRowCol(index, settings.gridSize)
@@ -110,6 +148,23 @@ const GameBoard: React.FC = () => {
   // Show results when game is completed
   if (gamePhase === 'completed') {
     const accuracy = calculateAccuracy(score.totalCorrect, score.totalIncorrect, score.totalMissed)
+    const isExcellentPerformance = accuracy >= 90
+    const canLevelUp = isExcellentPerformance && nLevel < 10
+    
+    const handleContinueNextLevel = () => {
+      // Clear any existing preparation state
+      setPreparationTime(null)
+      
+      // Update level and reset game in sequence
+      updateSettings({ nLevel: nLevel + 1 })
+      resetGame()
+      
+      // Start the game after a brief delay to ensure state is clean
+      setTimeout(() => {
+        const gameStore = useGameStore.getState()
+        gameStore.startGame()
+      }, 300) // Brief delay to ensure all state updates complete
+    }
     
     return (
       <Fade in={true}>
@@ -147,6 +202,21 @@ const GameBoard: React.FC = () => {
           <Typography variant="h4" gutterBottom color="primary" sx={{ mb: 3 }}>
             Final Score: {accuracy.toFixed(1)}%
           </Typography>
+
+          {/* Excellent Performance Message */}
+          {isExcellentPerformance && (
+            <Box sx={{ mb: 3, p: 2, backgroundColor: alpha(theme.palette.success.main, 0.1), borderRadius: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
+                <CelebrationIcon sx={{ color: 'orange' }} />
+                <Typography variant="h6" sx={{ fontWeight: 600, color: 'orange' }}>
+                  Excellent Performance!
+                </Typography>
+              </Box>
+              <Typography variant="body2" sx={{ color: 'orange' }}>
+                You've mastered the {nLevel}-back level with {accuracy.toFixed(1)}% accuracy!
+              </Typography>
+            </Box>
+          )}
 
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3, mb: 3 }}>
             {/* Correct Responses */}
@@ -188,6 +258,50 @@ const GameBoard: React.FC = () => {
                 Audio matches missed: {score.missedAudio}
               </Typography>
             </Paper>
+
+          {/* Continue to Next Level Button */}
+          {canLevelUp && (
+            <Fade in={true} timeout={1000}>
+              <Button
+                onClick={handleContinueNextLevel}
+                variant="contained"
+                size="large"
+                startIcon={<LevelUpIcon />}
+                sx={{
+                  px: 4,
+                  py: 1.5,
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  backgroundColor: 'success.main',
+                  background: `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.dark} 100%)`,
+                  boxShadow: `0 4px 15px ${alpha(theme.palette.success.main, 0.4)}`,
+                  '&:hover': {
+                    background: `linear-gradient(135deg, ${theme.palette.success.dark} 0%, ${theme.palette.success.main} 100%)`,
+                    boxShadow: `0 6px 20px ${alpha(theme.palette.success.main, 0.5)}`,
+                    transform: 'translateY(-2px)',
+                  },
+                  '&:active': {
+                    transform: 'translateY(0px)',
+                  },
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                }}
+              >
+                Continue to {nLevel + 1}-Back Level
+              </Button>
+            </Fade>
+          )}
+
+          {/* Max Level Reached Message */}
+          {isExcellentPerformance && nLevel >= 10 && (
+            <Box sx={{ mt: 2, p: 2, backgroundColor: alpha(theme.palette.info.main, 0.1), borderRadius: 2 }}>
+              <Typography variant="h6" color="info.main" sx={{ fontWeight: 600, mb: 1 }}>
+                🏆 Master Level Achieved!
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                You've reached the maximum difficulty level. Congratulations on mastering the Dual N-Back challenge!
+              </Typography>
+            </Box>
+          )}
           
         </Paper>
       </Fade>
@@ -249,8 +363,49 @@ const GameBoard: React.FC = () => {
     <Fade in={true}>
       <Box sx={{ width: '100%' }}>
 
-        {/* Game Grid */}
+        {/* Preparation Countdown */}
+        {isPlaying && preparationTime !== null && (
+          <Fade in={true}>
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '300px',
+                textAlign: 'center',
+              }}
+            >
+              <Typography
+                variant="h1"
+                sx={{
+                  fontSize: '4rem',
+                  fontWeight: 'bold',
+                  color: 'primary.main',
+                  mb: 2,
+                  textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                  animation: 'pulse 1s ease-in-out',
+                  '@keyframes pulse': {
+                    '0%': { transform: 'scale(1)', opacity: 0.8 },
+                    '50%': { transform: 'scale(1.1)', opacity: 1 },
+                    '100%': { transform: 'scale(1)', opacity: 0.8 },
+                  },
+                }}
+              >
+                {(preparationTime ?? 0) > 0 ? preparationTime : 'GO!'}
+              </Typography>
+              <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                {(preparationTime ?? 0) > 0 ? 'Get Ready...' : 'Game Starting!'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {nLevel}-Back Level • Remember {nLevel} steps back
+              </Typography>
+            </Box>
+          </Fade>
+        )}
 
+        {/* Game Grid - only show when not in preparation */}
+        {isPlaying && preparationTime === null && (
           <Grid 
             container 
             spacing={1.5} 
@@ -286,7 +441,46 @@ const GameBoard: React.FC = () => {
           >
             {Array.from({ length: settings.gridSize ** 2 }, (_, index) => renderGridCell(index))}
           </Grid>
+        )}
 
+        {/* Show grid for non-playing states */}
+        {!isPlaying && (
+          <Grid 
+            container 
+            spacing={1.5} 
+            sx={{ 
+              maxWidth: '300px', 
+              margin: '0 auto',
+              backgroundImage: 'url(/generated_head.png)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+              borderRadius: 2,
+              padding: '12px 6px 6px 0px',
+              position: 'relative',
+              justifyContent: 'center',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                borderRadius: 2,
+                zIndex: 0,
+              },
+              '& > .MuiGrid-item': {
+                position: 'relative',
+                zIndex: 1,
+                paddingLeft: '6px !important',
+                paddingTop: '6px !important',
+              }
+            }}
+          >
+            {Array.from({ length: settings.gridSize ** 2 }, (_, index) => renderGridCell(index))}
+          </Grid>
+        )}
 
         {/* Game Info */}
  
