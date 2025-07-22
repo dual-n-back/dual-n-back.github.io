@@ -130,17 +130,25 @@ const GameControls: React.FC = () => {
                     onClick={handlePositionMatch}
                     id="position-btn"
                     sx={{
-                      px: 6,
+                      px: 2,
                       py: 1.5,
-                      fontSize: '1rem',
+                      fontSize: '0.9rem',
                       fontWeight: 600,
                       backgroundColor: getButtonColor('position'),
                       borderRadius: 2,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      minWidth: '120px',
+                      minHeight: '80px',
                       '&:hover': {
                         backgroundColor: getButtonColor('position') === 'darkgrey' ? 'grey' : getButtonColor('position'),
                       },
                     }}
                   >
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, mb: 0.5 }}>
+                      Position Match
+                    </Typography>
                     <Grid4x4Sharp />
                   </Button>
 
@@ -148,17 +156,25 @@ const GameControls: React.FC = () => {
                     onClick={handleAudioMatch}
                     id="audio-btn"
                     sx={{
-                      px: 6, // Matches padding of start and pause buttons
+                      px: 2,
                       py: 1.5,
-                      fontSize: '1rem',
+                      fontSize: '0.9rem',
                       fontWeight: 600,
                       backgroundColor: getButtonColor('audio'),
                       borderRadius: 2,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      minWidth: '120px',
+                      minHeight: '80px',
                       '&:hover': {
                         backgroundColor: getButtonColor('audio') === 'darkgrey' ? 'grey' : getButtonColor('audio'),
                       },
                     }}
                   >
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, mb: 0.5 }}>
+                      Audio Match
+                    </Typography>
                     <VolumeUpIcon />
                   </Button>
                 </Box>

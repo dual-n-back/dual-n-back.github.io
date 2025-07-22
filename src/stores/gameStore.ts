@@ -11,14 +11,14 @@ import { preloadAudio } from '../utils/audioManager'
 
 const defaultSettings: GameSettings = {
   nLevel: 1,
-  totalRounds: 20,
+  totalRounds: 15,
   showVisual: true,
   showAudio: true,
   stimulusDuration: 500,
-  interstimulusInterval: 2500,
+  interstimulusInterval: 1800,
   gridSize: 3,
   audioType: 'letters',
-  volume: 0.5,
+  volume: 0.8,
   autoAdvance: true,
 }
 

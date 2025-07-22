@@ -76,9 +76,9 @@ const GameBoard: React.FC = () => {
               cursor: 'pointer',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               background: isActive
-                ? `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
-                : theme.palette.background.paper,
-              border: `2px solid ${isActive ? theme.palette.primary.main : alpha(theme.palette.divider, 0.2)}`,
+                ? `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.8)} 0%, ${alpha(theme.palette.secondary.main, 0.8)} 100%)`
+                : alpha(theme.palette.background.paper, 0.8),
+              border: `2px solid ${isActive ? alpha(theme.palette.primary.main, 0.8) : alpha(theme.palette.divider, 0.2)}`,
               borderRadius: 2,
               transform: isActive ? 'scale(1.05)' : 'scale(1)',
               boxShadow: isActive
@@ -253,17 +253,18 @@ const GameBoard: React.FC = () => {
 
           <Grid 
             container 
-            spacing={2} 
+            spacing={1.5} 
             sx={{ 
-              maxWidth: '400px', 
+              maxWidth: '300px', 
               margin: '0 auto',
               backgroundImage: 'url(/generated_head.png)',
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               backgroundRepeat: 'no-repeat',
               borderRadius: 2,
-              padding: 2,
+              padding: '12px 6px 6px 0px',
               position: 'relative',
+              justifyContent: 'center',
               '&::before': {
                 content: '""',
                 position: 'absolute',
@@ -275,9 +276,11 @@ const GameBoard: React.FC = () => {
                 borderRadius: 2,
                 zIndex: 0,
               },
-              '& > *': {
+              '& > .MuiGrid-item': {
                 position: 'relative',
                 zIndex: 1,
+                paddingLeft: '6px !important',
+                paddingTop: '6px !important',
               }
             }}
           >

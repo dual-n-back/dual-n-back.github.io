@@ -101,22 +101,6 @@ const Footer: React.FC = () => {
           </Box>
         </Box>
 
-        <Box sx={{ mt: 2 }}>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{
-              display: 'block',
-              textAlign: 'center',
-              fontSize: '0.75rem',
-              lineHeight: 1.4,
-            }}
-          >
-            Built with React, TypeScript, and Material-UI. Hosted on GitHub Pages.
-            <br />
-            Improve your working memory and cognitive abilities through regular practice.
-          </Typography>
-        </Box>
       </Container>
     </Box>
   )
