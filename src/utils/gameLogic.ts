@@ -136,7 +136,7 @@ const applyAdaptiveSettings = (
 export const createPerformanceSnapshot = (
   responses: any[],
   currentRound: number,
-  timeWindow: number = 10
+  timeWindow: number = 5
 ): PerformanceSnapshot => {
   const recentResponses = responses.slice(-timeWindow)
   if (recentResponses.length === 0) {
@@ -386,7 +386,7 @@ export const generateAdaptiveSequence = (
   if (length <= nLevel) return sequence
   
   // Generate adaptive sequence segments
-  const segmentSize = Math.max(5, Math.floor(eligibleStimuli / 4)) // Adapt every ~25% of sequence
+  const segmentSize = Math.max(3, Math.floor(eligibleStimuli / 3)) // Adapt every ~33% of sequence
   
   for (let segmentStart = 0; segmentStart < eligibleStimuli; segmentStart += segmentSize) {
     const segmentEnd = Math.min(segmentStart + segmentSize, eligibleStimuli)
@@ -1175,9 +1175,9 @@ export const analyzeAdaptiveTriggers = (
  * // Track performance history
  * const performanceHistory: PerformanceSnapshot[] = []
  * 
- * // During game, periodically create snapshots
- * if (responses.length % 5 === 0) {
- *   const snapshot = createPerformanceSnapshot(responses, currentRound, 10)
+ * // During game, periodically create snapshots (every 3 responses for 15-round games)
+ * if (responses.length % 3 === 0) {
+ *   const snapshot = createPerformanceSnapshot(responses, currentRound, 5)
  *   performanceHistory.push(snapshot)
  * }
  * 

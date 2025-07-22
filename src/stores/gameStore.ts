@@ -2,7 +2,6 @@ import { create } from 'zustand'
 import { GameState, GameSettings, GameSequence, ResponseType } from '../types/game'
 import { 
   generateEngagingSequence, 
-  generateAdaptiveSequence, 
   createPerformanceSnapshot, 
   analyzeAdaptiveTriggers, 
   type PerformanceSnapshot 
@@ -51,7 +50,6 @@ const initialGameState: Omit<GameState, 'nLevel' | 'totalRounds'> = {
 interface GameStore extends GameState {
   settings: GameSettings
   performanceHistory: PerformanceSnapshot[]
-  adaptiveMode: boolean
   
   // Actions
   startGame: () => void
@@ -62,7 +60,6 @@ interface GameStore extends GameState {
   resetGame: () => void
   updateSettings: (newSettings: Partial<GameSettings>) => void
   setSequence: (sequence: GameSequence[]) => void
-  toggleAdaptiveMode: () => void
   
   // Stimulus management
   presentStimulus: (index: number) => void
@@ -84,7 +81,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
   totalRounds: defaultSettings.totalRounds,
   settings: defaultSettings,
   performanceHistory: [],
-  adaptiveMode: true, // Enable adaptive difficulty by default
 
   // Actions
   startGame: () => {
@@ -93,21 +89,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Determine difficulty based on nLevel for optimal engagement
     const difficulty = state.nLevel <= 2 ? 'easy' : state.nLevel <= 4 ? 'medium' : 'hard'
     
-    // Generate sequence using adaptive algorithm if enabled
-    const sequence = state.adaptiveMode 
-      ? generateAdaptiveSequence(
-          state.totalRounds + state.nLevel, 
-          state.settings.gridSize,
-          state.nLevel,
-          difficulty,
-          state.performanceHistory
-        )
-      : generateEngagingSequence(
-          state.totalRounds + state.nLevel, 
-          state.settings.gridSize,
-          state.nLevel,
-          difficulty
-        )
+    // Use static engaging sequence
+    const sequence = generateEngagingSequence(
+      state.settings.totalRounds + state.nLevel,
+      state.settings.gridSize,
+      state.nLevel,
+      difficulty
+    )
     
     // Preload audio to ensure voices are ready
     preloadAudio().catch(console.error)
@@ -166,11 +154,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   }),
 
   resetGame: () => {
-    const { nLevel, totalRounds } = get()
+    const { nLevel } = get()
     set({
       ...initialGameState,
       nLevel,
-      totalRounds,
     })
   },
 
@@ -181,14 +168,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       settings: updatedSettings,
       nLevel: newSettings.nLevel ?? get().nLevel,
-      totalRounds: newSettings.totalRounds ?? get().totalRounds,
     })
-  },
-
-  toggleAdaptiveMode: () => {
-    const current = get().adaptiveMode
-    set({ adaptiveMode: !current })
-    console.log(`🧠 Adaptive Difficulty: ${!current ? 'ENABLED' : 'DISABLED'}`)
   },
 
   setSequence: (sequence) => set({ sequence }),
@@ -225,6 +205,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { currentStimulusIndex, sequence, nLevel } = get()
     const nextIndex = currentStimulusIndex + 1
     
+    // Check if game should end
     if (nextIndex >= sequence.length) {
       set({
         isPlaying: false,
@@ -322,27 +303,30 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
     })
 
-    // Adaptive difficulty: Create performance snapshot and analyze triggers
+    // Performance tracking: Create performance snapshot for analysis
     const updatedState = get()
-    if (updatedState.adaptiveMode && updatedState.responses.length % 5 === 0) {
+    if (updatedState.responses.length % 3 === 0) {
       const snapshot = createPerformanceSnapshot(
         updatedState.responses, 
         updatedState.currentRound,
-        10
+        5
       )
       const newPerformanceHistory = [...updatedState.performanceHistory, snapshot]
       
-      // Analyze if difficulty should be adjusted
+      // Analyze performance triggers for future use
       const triggers = analyzeAdaptiveTriggers(newPerformanceHistory, updatedState.nLevel)
       
       set({ 
         performanceHistory: newPerformanceHistory.slice(-20) // Keep last 20 snapshots
       })
       
-      // Log adaptive insights for debugging
-      if (triggers.shouldAdjust) {
-        console.log(`🧠 Adaptive AI: ${triggers.reason} (${triggers.urgency} urgency) - Recommend: ${triggers.recommendedAction}`)
-      }
+      // Log performance insights for debugging
+      console.log('📊 Performance Analysis:', {
+        round: updatedState.currentRound,
+        accuracy: snapshot.accuracy.toFixed(1) + '%',
+        reason: triggers.reason,
+        recommendation: triggers.recommendedAction
+      })
     }
   },
 

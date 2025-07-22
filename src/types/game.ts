@@ -2,7 +2,6 @@ export interface GameState {
   isPlaying: boolean
   isPaused: boolean
   currentRound: number
-  totalRounds: number
   nLevel: number
   sequence: GameSequence[]
   currentStimulusIndex: number
