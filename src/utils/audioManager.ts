@@ -242,9 +242,15 @@ export const playSpokenLetter = async (
       }
       
       // Start speaking with a small delay to ensure readiness
+      // Extra delay for the first letters to prevent cutoff
+      const delay = spokenLetters[letterIndex] === 'A' ? 200 : 100
       setTimeout(() => {
+        // Ensure speech synthesis is ready
+        if (speechSynthesis.paused) {
+          speechSynthesis.resume()
+        }
         speechSynthesis.speak(utterance)
-      }, 100)
+      }, delay)
       
     } catch (error) {
       reject(error)
@@ -322,9 +328,15 @@ export const playSpokenNumber = async (
       }
       
       // Start speaking with a small delay to ensure readiness
+      // Extra delay for the first numbers to prevent cutoff
+      const delay = spokenNumbers[numberIndex] === '1' ? 200 : 100
       setTimeout(() => {
+        // Ensure speech synthesis is ready
+        if (speechSynthesis.paused) {
+          speechSynthesis.resume()
+        }
         speechSynthesis.speak(utterance)
-      }, 100)
+      }, delay)
       
     } catch (error) {
       reject(error)
@@ -430,6 +442,36 @@ export const preloadAudio = async (): Promise<void> => {
   } catch (error) {
     console.error('Failed to preload audio:', error)
   }
+}
+
+/**
+ * Pre-warm speech synthesis to prevent first letter cutoff
+ */
+export const prewarmSpeechSynthesis = async (): Promise<void> => {
+  if (!voicesLoaded || !preferredVoice) {
+    await loadVoices()
+  }
+  
+  return new Promise((resolve) => {
+    // Create a silent, very short utterance to warm up the speech engine
+    const warmupUtterance = new SpeechSynthesisUtterance('')
+    warmupUtterance.volume = 0 // Silent
+    warmupUtterance.rate = 2.0 // Very fast
+    
+    if (preferredVoice) {
+      warmupUtterance.voice = preferredVoice
+    }
+    
+    warmupUtterance.onend = () => resolve()
+    warmupUtterance.onerror = () => resolve() // Continue even if error
+    
+    // Cancel any previous speech and start warmup
+    speechSynthesis.cancel()
+    speechSynthesis.speak(warmupUtterance)
+    
+    // Fallback timeout
+    setTimeout(resolve, 500)
+  })
 }
 
 /**

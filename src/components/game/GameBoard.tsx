@@ -15,7 +15,7 @@ import {
   Celebration as CelebrationIcon,
 } from '@mui/icons-material'
 import { useGameStore } from '../../stores/gameStore'
-import { playAudioTone } from '../../utils/audioManager'
+import { playAudioTone, prewarmSpeechSynthesis } from '../../utils/audioManager'
 import { indexToRowCol, calculateAccuracy } from '../../utils/gameLogic'
 
 const GameBoard: React.FC = () => {
@@ -40,6 +40,9 @@ const GameBoard: React.FC = () => {
     // Only start countdown if we're playing and in preparation phase without existing countdown
     if (isPlaying && gamePhase === 'preparation' && preparationTime === null) {
       setPreparationTime(3) // Start with 3 seconds (3, 2, 1, GO!)
+      
+      // Prewarm speech synthesis during countdown to prevent first letter cutoff
+      prewarmSpeechSynthesis().catch(console.warn)
       
       const countdown = setInterval(() => {
         setPreparationTime(prev => {
