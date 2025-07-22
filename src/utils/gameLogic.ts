@@ -131,9 +131,11 @@ const applyAdaptiveSettings = (
 
 /**
  * Creates a performance snapshot from current game state
+ * Now calculates all metrics from consistent recent time window for accurate adaptive decisions
  */
 export const createPerformanceSnapshot = (
   responses: any[],
+  currentRound: number,
   timeWindow: number = 10
 ): PerformanceSnapshot => {
   const recentResponses = responses.slice(-timeWindow)
@@ -148,15 +150,18 @@ export const createPerformanceSnapshot = (
     }
   }
   
-  // Count correct responses
-  const correctResponses = recentResponses.filter(r => r.correct === true).length
+  // Calculate recent performance metrics from the time window for consistent adaptive decisions
+  // This ensures all snapshot data represents the same recent time period
+  const recentCorrect = recentResponses.filter(r => r.correct === true).length
+  const recentIncorrect = recentResponses.filter(r => r.correct === false && r.type).length
+  const recentMissed = recentResponses.filter(r => r.correct === false && !r.type).length
+  const recentTotalRounds = Math.min(timeWindow, currentRound)
   
-  // For missed responses, we need to get this from the score data
-  // Since responses only track actual user responses, not missed opportunities
-  const missedResponses = 0 // We'll need to calculate this differently
+  // Use comprehensive accuracy calculation for the recent window
+  const accuracy = calculateAccuracy(recentCorrect, recentIncorrect, recentMissed, recentTotalRounds)
   
-  const totalPossibleResponses = recentResponses.length
-  const accuracy = totalPossibleResponses > 0 ? (correctResponses / totalPossibleResponses) * 100 : 0
+  // Missed responses from recent window only
+  const missedResponses = recentMissed
   
   const responseTimes = recentResponses
     .filter(r => r.responseTime && r.responseTime > 0)
@@ -165,11 +170,27 @@ export const createPerformanceSnapshot = (
     ? responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length
     : 0
   
+  // Debug logging for performance snapshots
+  console.log('📊 Performance Snapshot Created:', {
+    accuracy: accuracy.toFixed(1) + '%',
+    responseTime: avgResponseTime.toFixed(0) + 'ms',
+    missedResponses,
+    totalResponses: recentTotalRounds,
+    timeWindow,
+    recentResponsesCount: recentResponses.length,
+    breakdown: {
+      recentCorrect,
+      recentIncorrect, 
+      recentMissed
+    },
+    timestamp: new Date().toLocaleTimeString()
+  })
+  
   return {
     accuracy,
     responseTime: avgResponseTime,
     missedResponses,
-    totalResponses: totalPossibleResponses,
+    totalResponses: recentTotalRounds, // Use recent window size for consistent calculations
     timestamp: Date.now(),
     difficulty: 1 // This should be calculated based on current game settings
   }
@@ -847,28 +868,19 @@ export const rowColToIndex = (row: number, col: number, gridSize: number) => {
 
 /**
  * Calculates the accuracy percentage from score data
+ * Now includes correct non-responses (when user correctly didn't respond to non-matches)
  */
-export const calculateAccuracy = (correct: number, incorrect: number, missed: number = 0): number => {
-  const total = correct + incorrect + missed
-  if (total === 0) return 0
-  return (correct / total) * 100
-}
-
-/**
- * Calculates the overall game score
- */
-export const calculateGameScore = (score: {
-  positionCorrect: number
-  positionIncorrect: number
-  audioCorrect: number
-  audioIncorrect: number
-  missedPositional?: number
-  missedAudio?: number
-}): number => {
-  const totalCorrect = score.positionCorrect + score.audioCorrect
-  const totalIncorrect = score.positionIncorrect + score.audioIncorrect
-  const totalMissed = (score.missedPositional || 0) + (score.missedAudio || 0)
-  return calculateAccuracy(totalCorrect, totalIncorrect, totalMissed)
+export const calculateAccuracy = (
+  correct: number, 
+  incorrect: number, 
+  missed: number,
+  totalRounds: number
+): number => {
+    const correctNonResponses = totalRounds - correct - incorrect - missed
+    const totalSuccess = correct + Math.max(0, correctNonResponses)
+    const totalAttempts = totalRounds
+    if (totalAttempts === 0) return 0
+    return (totalSuccess / totalAttempts) * 100
 }
 
 /**
@@ -1092,45 +1104,66 @@ export const analyzeAdaptiveTriggers = (
   const excellentThreshold = Math.max(85, 95 - nLevel * 2)
   const poorThreshold = Math.max(50, 65 - nLevel * 3)
   
+  // Debug logging for adaptive trigger analysis
+  console.log('🧠 Adaptive Trigger Analysis:', {
+    nLevel,
+    avgAccuracy: avgAccuracy.toFixed(1) + '%',
+    avgMissedRate: (avgMissedRate * 100).toFixed(1) + '%',
+    thresholds: {
+      excellent: excellentThreshold + '%',
+      poor: poorThreshold + '%'
+    },
+    recentSnapshots: recent.length,
+    timestamp: new Date().toLocaleTimeString()
+  })
+  
   // Check for excellent performance (increase difficulty)
   if (avgAccuracy >= excellentThreshold && avgMissedRate < 0.1) {
-    return {
+    const result = {
       shouldAdjust: true,
-      urgency: recent.every(p => p.accuracy >= excellentThreshold) ? 'high' : 'medium',
+      urgency: recent.every(p => p.accuracy >= excellentThreshold) ? 'high' as const : 'medium' as const,
       reason: `Excellent performance (${avgAccuracy.toFixed(1)}% accuracy)`,
-      recommendedAction: 'increase'
+      recommendedAction: 'increase' as const
     }
+    console.log('🚀 Adaptive Decision: INCREASE DIFFICULTY', result)
+    return result
   }
   
   // Check for poor performance (decrease difficulty)
   if (avgAccuracy <= poorThreshold || avgMissedRate > 0.4) {
-    return {
+    const result = {
       shouldAdjust: true,
-      urgency: avgAccuracy <= poorThreshold - 10 ? 'high' : 'medium',
+      urgency: avgAccuracy <= poorThreshold - 10 ? 'high' as const : 'medium' as const,
       reason: `Poor performance (${avgAccuracy.toFixed(1)}% accuracy, ${(avgMissedRate * 100).toFixed(1)}% missed)`,
-      recommendedAction: 'decrease'
+      recommendedAction: 'decrease' as const
     }
+    console.log('📉 Adaptive Decision: DECREASE DIFFICULTY', result)
+    return result
   }
   
   // Check for declining trend
   if (recent.length >= 3) {
     const trend = recent[recent.length - 1].accuracy - recent[0].accuracy
     if (trend < -15) {
-      return {
+      const result = {
         shouldAdjust: true,
-        urgency: 'medium',
+        urgency: 'medium' as const,
         reason: `Declining performance trend (${trend.toFixed(1)}% drop)`,
-        recommendedAction: 'decrease'
+        recommendedAction: 'decrease' as const
       }
+      console.log('📉 Adaptive Decision: DECLINING TREND', result)
+      return result
     }
   }
   
-  return {
+  const result = {
     shouldAdjust: false,
-    urgency: 'low',
+    urgency: 'low' as const,
     reason: 'Performance within acceptable range',
-    recommendedAction: 'maintain'
+    recommendedAction: 'maintain' as const
   }
+  console.log('✅ Adaptive Decision: MAINTAIN DIFFICULTY', result)
+  return result
 }
 
 /**
@@ -1144,7 +1177,7 @@ export const analyzeAdaptiveTriggers = (
  * 
  * // During game, periodically create snapshots
  * if (responses.length % 5 === 0) {
- *   const snapshot = createPerformanceSnapshot(responses, 10)
+ *   const snapshot = createPerformanceSnapshot(responses, currentRound, 10)
  *   performanceHistory.push(snapshot)
  * }
  * 

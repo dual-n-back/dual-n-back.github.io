@@ -150,7 +150,7 @@ const GameBoard: React.FC = () => {
 
   // Show results when game is completed
   if (gamePhase === 'completed') {
-    const accuracy = calculateAccuracy(score.totalCorrect, score.totalIncorrect, score.totalMissed)
+    const accuracy = calculateAccuracy(score.totalCorrect, score.totalIncorrect, score.totalMissed, settings.totalRounds)
     const isExcellentPerformance = accuracy >= 90
     const canLevelUp = isExcellentPerformance && nLevel < 10
     

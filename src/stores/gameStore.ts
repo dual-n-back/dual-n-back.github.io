@@ -325,7 +325,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Adaptive difficulty: Create performance snapshot and analyze triggers
     const updatedState = get()
     if (updatedState.adaptiveMode && updatedState.responses.length % 5 === 0) {
-      const snapshot = createPerformanceSnapshot(updatedState.responses, 10)
+      const snapshot = createPerformanceSnapshot(
+        updatedState.responses, 
+        updatedState.currentRound,
+        10
+      )
       const newPerformanceHistory = [...updatedState.performanceHistory, snapshot]
       
       // Analyze if difficulty should be adjusted
