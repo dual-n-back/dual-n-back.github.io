@@ -23,113 +23,6 @@ export interface AdaptiveAdjustments {
 }
 
 /**
- * Calculates adaptive difficulty adjustments based on performance history
- * Analyzes recent performance to determine how to modify difficulty
- */
-const calculateAdaptiveAdjustments = (
-  performanceHistory: PerformanceSnapshot[],
-  nLevel: number
-): AdaptiveAdjustments => {
-  if (performanceHistory.length === 0) {
-    return {
-      matchRateMultiplier: 1.0,
-      complexityBonus: 0,
-      pacingAdjustment: 0,
-      confidenceLevel: 0
-    }
-  }
-  
-  // Calculate recent performance trends
-  const recentPerformance = performanceHistory.slice(-5) // Last 5 snapshots
-  const avgAccuracy = recentPerformance.reduce((sum, p) => sum + p.accuracy, 0) / recentPerformance.length
-  const avgResponseTime = recentPerformance.reduce((sum, p) => sum + p.responseTime, 0) / recentPerformance.length
-  const missedRate = recentPerformance.reduce((sum, p) => sum + (p.missedResponses / p.totalResponses), 0) / recentPerformance.length
-  
-  // Calculate performance trend (improving vs declining)
-  let trend = 0
-  if (recentPerformance.length >= 3) {
-    const first = recentPerformance.slice(0, 2).reduce((sum, p) => sum + p.accuracy, 0) / 2
-    const last = recentPerformance.slice(-2).reduce((sum, p) => sum + p.accuracy, 0) / 2
-    trend = (last - first) / 100 // Normalize to -1 to +1
-  }
-  
-  // Define performance targets based on n-level
-  const targetAccuracy = Math.max(60, 85 - (nLevel - 2) * 5) // Higher n-levels have lower accuracy targets
-  const maxResponseTime = 1500 + (nLevel - 2) * 200 // More time allowed for higher n-levels
-  
-  // Calculate adjustments
-  let matchRateMultiplier = 1.0
-  let complexityBonus = 0
-  let pacingAdjustment = 0
-  
-  // Accuracy-based adjustments
-  if (avgAccuracy > targetAccuracy + 15) {
-    // Performance is excellent - increase difficulty
-    matchRateMultiplier = Math.min(1.3, 1.0 + (avgAccuracy - targetAccuracy) / 100)
-    complexityBonus = Math.min(0.15, (avgAccuracy - targetAccuracy) / 200)
-    pacingAdjustment = Math.max(-1, -Math.floor((avgAccuracy - targetAccuracy) / 20))
-  } else if (avgAccuracy < targetAccuracy - 15) {
-    // Performance is poor - decrease difficulty
-    matchRateMultiplier = Math.max(0.6, 1.0 - (targetAccuracy - avgAccuracy) / 150)
-    complexityBonus = Math.max(-0.1, -(targetAccuracy - avgAccuracy) / 300)
-    pacingAdjustment = Math.min(2, Math.floor((targetAccuracy - avgAccuracy) / 15))
-  }
-  
-  // Response time adjustments
-  if (avgResponseTime > maxResponseTime) {
-    // User is slow - reduce complexity
-    matchRateMultiplier *= 0.9
-    pacingAdjustment += 1
-  }
-  
-  // Missed response adjustments
-  if (missedRate > 0.3) {
-    // Too many missed responses - reduce difficulty significantly
-    matchRateMultiplier *= 0.8
-    complexityBonus -= 0.05
-    pacingAdjustment += 1
-  }
-  
-  // Trend-based adjustments
-  if (trend > 0.1) {
-    // User is improving - gradually increase difficulty
-    matchRateMultiplier += trend * 0.2
-    complexityBonus += trend * 0.1
-  } else if (trend < -0.1) {
-    // User is declining - ease off difficulty
-    matchRateMultiplier += trend * 0.3
-    complexityBonus += trend * 0.15
-  }
-  
-  // Calculate confidence level
-  const confidenceLevel = Math.min(1.0, recentPerformance.length / 5) * 
-                         (1 - Math.abs(avgAccuracy - targetAccuracy) / 100)
-  
-  return {
-    matchRateMultiplier: Math.max(0.5, Math.min(1.5, matchRateMultiplier)),
-    complexityBonus: Math.max(-0.1, Math.min(0.2, complexityBonus)),
-    pacingAdjustment: Math.max(-1, Math.min(2, Math.round(pacingAdjustment))),
-    confidenceLevel: Math.max(0, Math.min(1, confidenceLevel))
-  }
-}
-
-/**
- * Applies adaptive adjustments to base difficulty settings
- */
-const applyAdaptiveSettings = (
-  baseSettings: { position: number, audio: number, maxConsecutive: number, minGap: number, overlapBonus: number },
-  adjustments: AdaptiveAdjustments
-): { position: number, audio: number, maxConsecutive: number, minGap: number, overlapBonus: number } => {
-  return {
-    position: Math.max(0.15, Math.min(0.45, baseSettings.position * adjustments.matchRateMultiplier)),
-    audio: Math.max(0.15, Math.min(0.45, baseSettings.audio * adjustments.matchRateMultiplier)),
-    maxConsecutive: baseSettings.maxConsecutive,
-    minGap: Math.max(1, baseSettings.minGap + adjustments.pacingAdjustment),
-    overlapBonus: Math.max(-0.05, Math.min(0.25, baseSettings.overlapBonus + adjustments.complexityBonus))
-  }
-}
-
-/**
  * Creates a performance snapshot from current game state
  * Now calculates all metrics from consistent recent time window for accurate adaptive decisions
  */
@@ -197,30 +90,6 @@ export const createPerformanceSnapshot = (
 }
 
 /**
- * Calculates the allowed overlap threshold based on n-level and difficulty considerations
- * Higher n-levels allow more overlaps to increase cognitive load
- * 
- * Overlap Strategy:
- * - N-level 1-2: 20-30% overlap (beginner friendly)
- * - N-level 3-4: 30-50% overlap (intermediate challenge)
- * - N-level 5+: 40-60% overlap (advanced difficulty spike)
- * 
- * Research suggests that occasional simultaneous matches:
- * 1. Increase working memory load effectively
- * 2. Provide realistic dual-task training scenarios
- * 3. Create natural difficulty progression
- */
-const getOverlapThreshold = (nLevel: number): number => {
-  // Base overlap allowance increases with n-level
-  const baseThreshold = Math.min(0.2 + (nLevel - 1) * 0.1, 0.6) // 20% to 60% max
-  
-  // Add small random factor to prevent predictability (±10%)
-  const randomFactor = 0.9 + Math.random() * 0.2
-  
-  return Math.min(baseThreshold * randomFactor, 0.7) // Cap at 70%
-}
-
-/**
  * Generates an engaging game sequence for the Dual N-Back game with balanced match opportunities
  * Based on research from dual n-back studies showing optimal engagement requires:
  * - 25-35% match rate for position
@@ -228,600 +97,254 @@ const getOverlapThreshold = (nLevel: number): number => {
  * - Alternating opportunities to maintain active engagement
  * - Strategic distribution to avoid long periods without matches
  */
-export const generateGameSequence = (length: number, gridSize: number, nLevel: number = 2): GameSequence[] => {
+export const generateGameSequence = (length: number, gridSize: number, nLevel: number = 2, difficulty: 'easy' | 'medium' | 'hard' = 'medium'): GameSequence[] => {
   const sequence: GameSequence[] = []
   const maxPosition = gridSize * gridSize - 1
-  const maxAudio = 7 // 8 different audio tones (0-7)
-  
-  // Target match rates for optimal engagement (research-based)
-  const targetPositionMatchRate = 0.30 // 30% position matches
-  const targetAudioMatchRate = 0.30 // 30% audio matches
-  
-  // Calculate target number of matches
-  const eligibleStimuli = Math.max(0, length - nLevel) // Can't have matches in first n stimuli
-  const targetPositionMatches = Math.round(eligibleStimuli * targetPositionMatchRate)
-  const targetAudioMatches = Math.round(eligibleStimuli * targetAudioMatchRate)
-  
-  // Initialize with random values for first n stimuli (no matches possible)
-  for (let i = 0; i < Math.min(nLevel, length); i++) {
-    sequence.push({
-      position: Math.floor(Math.random() * (maxPosition + 1)),
-      audio: Math.floor(Math.random() * (maxAudio + 1)),
-      timestamp: Date.now() + i * 3000,
-    })
-  }
-  
-  // Generate remaining stimuli with strategic match placement
-  if (length > nLevel) {
-    const remainingIndices = Array.from({ length: eligibleStimuli }, (_, i) => i + nLevel)
-    
-    // Shuffle indices for random distribution
-    const shuffledIndices = shuffleArray([...remainingIndices])
-    
-    // Select indices for position and audio matches
-    const positionMatchIndices = new Set(shuffledIndices.slice(0, targetPositionMatches))
-    const audioMatchIndices = new Set(shuffledIndices.slice(targetPositionMatches, targetPositionMatches + targetAudioMatches))
-    
-    // Smart overlap handling based on difficulty and randomness
-    const overlapCount = [...positionMatchIndices].filter(i => audioMatchIndices.has(i)).length
-    const maxAllowedOverlap = Math.ceil(Math.min(targetPositionMatches, targetAudioMatches) * getOverlapThreshold(nLevel))
-    
-    if (overlapCount > maxAllowedOverlap) {
-      // Redistribute only excess overlapping indices, keeping some for difficulty
-      const availableIndices = shuffledIndices.slice(targetPositionMatches + targetAudioMatches)
-      const excessOverlap = overlapCount - maxAllowedOverlap
-      let redistributed = 0
-      
-      for (const index of [...audioMatchIndices]) {
-        if (positionMatchIndices.has(index) && redistributed < Math.min(excessOverlap, availableIndices.length)) {
-          audioMatchIndices.delete(index)
-          audioMatchIndices.add(availableIndices[redistributed])
-          redistributed++
-        }
-      }
-    }
-    
-    // Generate stimuli for remaining positions
-    for (let i = nLevel; i < length; i++) {
-      const shouldPositionMatch = positionMatchIndices.has(i)
-      const shouldAudioMatch = audioMatchIndices.has(i)
-      
-      let position: number
-      let audio: number
-      
-      if (shouldPositionMatch) {
-        position = sequence[i - nLevel].position
-      } else {
-        // Ensure no accidental match
-        do {
-          position = Math.floor(Math.random() * (maxPosition + 1))
-        } while (position === sequence[i - nLevel].position)
-      }
-      
-      if (shouldAudioMatch) {
-        audio = sequence[i - nLevel].audio
-      } else {
-        // Ensure no accidental match
-        do {
-          audio = Math.floor(Math.random() * (maxAudio + 1))
-        } while (audio === sequence[i - nLevel].audio)
-      }
-      
-      sequence.push({
-        position,
-        audio,
-        timestamp: Date.now() + i * 3000,
-      })
-    }
-  }
-  
-  return sequence
-}
+  const maxAudio = 7 // 8 audio sounds (0-7)
 
-/**
- * Generates an adaptive sequence that adjusts difficulty based on real-time performance
- * This creates dynamic training that responds to user performance patterns
- * 
- * ADAPTIVE DIFFICULTY FEATURES:
- * 
- * 1. **Performance Analysis**:
- *    - Tracks accuracy, response time, missed responses
- *    - Identifies performance trends (improving/declining)
- *    - Calculates confidence levels in adjustments
- * 
- * 2. **Dynamic Adjustments**:
- *    - Match Rate: 0.6x to 1.5x based on accuracy
- *    - Overlap Complexity: -0.1 to +0.2 based on performance
- *    - Pacing: Adjusts gaps between matches (-1 to +2)
- * 
- * 3. **Segmented Adaptation**:
- *    - Recalculates difficulty every ~25% of sequence
- *    - Uses recent performance for mid-game adjustments
- *    - Maintains smooth transitions between segments
- * 
- * 4. **Real-time Triggers**:
- *    - Excellent performance (>85% accuracy) → increase difficulty
- *    - Poor performance (<65% accuracy) → decrease difficulty
- *    - High missed responses (>30%) → reduce complexity
- *    - Declining trends → immediate intervention
- * 
- * 5. **N-Level Sensitivity**:
- *    - Higher n-levels have lower accuracy targets
- *    - Adaptive thresholds scale with cognitive load
- *    - More forgiving adjustments for advanced levels
- */
-export const generateAdaptiveSequence = (
-  length: number,
-  gridSize: number,
-  nLevel: number = 2,
-  difficulty: 'easy' | 'medium' | 'hard' = 'medium',
-  performanceHistory: PerformanceSnapshot[] = []
-): GameSequence[] => {
-  const sequence: GameSequence[] = []
-  const maxPosition = gridSize * gridSize - 1
-  const maxAudio = 7
-  
-  // Base difficulty settings
-  const baseDifficultySettings = {
-    easy: { position: 0.35, audio: 0.35, maxConsecutive: 1, minGap: 2, overlapBonus: 0.05 },
-    medium: { position: 0.30, audio: 0.30, maxConsecutive: 2, minGap: 1, overlapBonus: 0.10 },
-    hard: { position: 0.25, audio: 0.25, maxConsecutive: 3, minGap: 1, overlapBonus: 0.15 }
-  }
-  
-  // Calculate adaptive adjustments
-  const adaptiveAdjustments = calculateAdaptiveAdjustments(performanceHistory, nLevel)
-  const settings = applyAdaptiveSettings(baseDifficultySettings[difficulty], adaptiveAdjustments)
-  
-  const eligibleStimuli = Math.max(0, length - nLevel)
-  
-  // Initialize first n stimuli (no matches possible)
-  for (let i = 0; i < Math.min(nLevel, length); i++) {
-    sequence.push({
-      position: Math.floor(Math.random() * (maxPosition + 1)),
-      audio: Math.floor(Math.random() * (maxAudio + 1)),
-      timestamp: Date.now() + i * 3000,
-    })
-  }
-  
-  if (length <= nLevel) return sequence
-  
-  // Generate adaptive sequence segments
-  const segmentSize = Math.max(3, Math.floor(eligibleStimuli / 3)) // Adapt every ~33% of sequence
-  
-  for (let segmentStart = 0; segmentStart < eligibleStimuli; segmentStart += segmentSize) {
-    const segmentEnd = Math.min(segmentStart + segmentSize, eligibleStimuli)
-    const segmentLength = segmentEnd - segmentStart
-    
-    // Recalculate adaptive settings for this segment if we have recent performance data
-    const recentPerformance = performanceHistory.slice(-3) // Last 3 data points
-    const segmentAdjustments = recentPerformance.length > 0 
-      ? calculateAdaptiveAdjustments(recentPerformance, nLevel)
-      : adaptiveAdjustments
-    const segmentSettings = applyAdaptiveSettings(settings, segmentAdjustments)
-    
-    // Calculate matches for this segment
-    const segmentPositionMatches = Math.round(segmentLength * segmentSettings.position)
-    const segmentAudioMatches = Math.round(segmentLength * segmentSettings.audio)
-    
-    // Generate pattern for this segment
-    const segmentPattern = createEngagementPattern(
-      segmentLength,
-      segmentPositionMatches,
-      segmentAudioMatches,
-      segmentSettings.maxConsecutive,
-      segmentSettings.minGap,
-      nLevel
-    )
-    
-    // Add pattern-breaking for this segment
-    const finalSegmentPattern = addPatternBreaking(
-      segmentPattern.position,
-      segmentPattern.audio,
-      { position: segmentPositionMatches, audio: segmentAudioMatches },
-      nLevel
-    )
-    
-    // Generate stimuli for this segment
-    for (let i = 0; i < segmentLength; i++) {
-      const absoluteIndex = nLevel + segmentStart + i
-      const shouldPositionMatch = finalSegmentPattern.position[i]
-      const shouldAudioMatch = finalSegmentPattern.audio[i]
-      
-      let position: number
-      let audio: number
-      
-      if (shouldPositionMatch) {
-        position = sequence[absoluteIndex - nLevel].position
-      } else {
-        const usedPositions = sequence.slice(Math.max(0, absoluteIndex - nLevel * 2), absoluteIndex).map(s => s.position)
-        do {
-          position = Math.floor(Math.random() * (maxPosition + 1))
-        } while (position === sequence[absoluteIndex - nLevel].position || 
-                 (usedPositions.filter(p => p === position).length > 1))
-      }
-      
-      if (shouldAudioMatch) {
-        audio = sequence[absoluteIndex - nLevel].audio
-      } else {
-        const usedAudios = sequence.slice(Math.max(0, absoluteIndex - nLevel * 2), absoluteIndex).map(s => s.audio)
-        do {
-          audio = Math.floor(Math.random() * (maxAudio + 1))
-        } while (audio === sequence[absoluteIndex - nLevel].audio || 
-                 (usedAudios.filter(a => a === audio).length > 1))
-      }
-      
-      sequence.push({
-        position,
-        audio,
-        timestamp: Date.now() + absoluteIndex * 3000,
-      })
-    }
-  }
-  
-  return sequence
-}
-
-/**
- * Generates an advanced engaging sequence with adaptive patterns
- * This creates sequences that maintain user engagement through:
- * - Alternating match types to prevent monotony
- * - Controlled difficulty progression within the sequence
- * - Strategic spacing to avoid long idle periods
- */
-export const generateEngagingSequence = (
-  length: number, 
-  gridSize: number, 
-  nLevel: number = 2,
-  difficulty: 'easy' | 'medium' | 'hard' = 'medium'
-): GameSequence[] => {
-  const sequence: GameSequence[] = []
-  const maxPosition = gridSize * gridSize - 1
-  const maxAudio = 7
-  
-  // Difficulty-based match rates and overlap settings for optimal engagement
+  // Difficulty-based match rates for optimal engagement
   const difficultySettings = {
-    easy: { position: 0.35, audio: 0.35, maxConsecutive: 1, minGap: 2, overlapBonus: 0.05 },
-    medium: { position: 0.30, audio: 0.30, maxConsecutive: 2, minGap: 1, overlapBonus: 0.10 },
-    hard: { position: 0.25, audio: 0.25, maxConsecutive: 3, minGap: 1, overlapBonus: 0.15 }
+    easy: { positionMatchRate: 0.28, audioMatchRate: 0.28, lureRate: 0.08 },
+    medium: { positionMatchRate: 0.23, audioMatchRate: 0.23, lureRate: 0.12 },
+    hard: { positionMatchRate: 0.20, audioMatchRate: 0.20, lureRate: 0.15 },
   }
-  
   const settings = difficultySettings[difficulty]
-  const eligibleStimuli = Math.max(0, length - nLevel)
-  
-  // Initialize first n stimuli (no matches possible)
-  for (let i = 0; i < Math.min(nLevel, length); i++) {
-    sequence.push({
-      position: Math.floor(Math.random() * (maxPosition + 1)),
-      audio: Math.floor(Math.random() * (maxAudio + 1)),
-      timestamp: Date.now() + i * 3000,
+
+  // Anti-clustering system: track recent values to ensure variety
+  const recentPositions: number[] = []
+  const recentAudios: number[] = []
+  const antiClusterWindow = Math.min(4, Math.ceil(gridSize * 0.6)) // Dynamic window based on grid size
+
+  /**
+   * Modern anti-repetition generator using weighted selection
+   * Prevents clustering while maintaining randomness
+   */
+  const generateAntiClusterValue = (
+    maxValue: number, 
+    excludeValue: number, 
+    recentValues: number[]
+  ): number => {
+    // Create probability weights (higher = more likely to be selected)
+    const weights = new Array(maxValue + 1).fill(1.0)
+    
+    // Reduce probability for excluded value
+    if (excludeValue >= 0 && excludeValue <= maxValue) {
+      weights[excludeValue] = 0
+    }
+    
+    // Apply anti-clustering: reduce probability for recent values
+    recentValues.forEach((value, index) => {
+      if (value >= 0 && value <= maxValue) {
+        // More recent values get stronger penalty
+        const recencyFactor = (recentValues.length - index) / recentValues.length
+        weights[value] *= Math.max(0.1, 1 - (recencyFactor * 0.7))
+      }
     })
+    
+    // Weighted random selection
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0)
+    let random = Math.random() * totalWeight
+    
+    for (let i = 0; i <= maxValue; i++) {
+      random -= weights[i]
+      if (random <= 0) {
+        return i
+      }
+    }
+    
+    // Fallback (should rarely happen)
+    return Math.floor(Math.random() * (maxValue + 1))
   }
-  
-  if (length <= nLevel) return sequence
-  
-  // Calculate target matches
-  const targetPositionMatches = Math.round(eligibleStimuli * settings.position)
-  const targetAudioMatches = Math.round(eligibleStimuli * settings.audio)
-  
-  // Create engagement pattern: varied and unpredictable placement with smart overlap handling
-  const matchPattern = createEngagementPattern(
-    eligibleStimuli, 
-    targetPositionMatches, 
-    targetAudioMatches,
-    settings.maxConsecutive,
-    settings.minGap,
-    nLevel
-  )
-  
-  // Add pattern-breaking to prevent predictability while considering n-level
-  const finalPattern = addPatternBreaking(
-    matchPattern.position,
-    matchPattern.audio,
-    { position: targetPositionMatches, audio: targetAudioMatches },
-    nLevel
-  )
-  
-  // Generate remaining stimuli following the engagement pattern
-  for (let i = nLevel; i < length; i++) {
-    const patternIndex = i - nLevel
-    const shouldPositionMatch = finalPattern.position[patternIndex]
-    const shouldAudioMatch = finalPattern.audio[patternIndex]
-    
-    let position: number
-    let audio: number
-    
-    if (shouldPositionMatch) {
-      position = sequence[i - nLevel].position
-    } else {
-      // Ensure no accidental match while maintaining variety
-      const usedPositions = sequence.slice(Math.max(0, i - nLevel * 2), i).map(s => s.position)
-      do {
-        position = Math.floor(Math.random() * (maxPosition + 1))
-      } while (position === sequence[i - nLevel].position || 
-               (usedPositions.filter(p => p === position).length > 1))
+
+  /**
+   * Updates anti-clustering history with smart window management
+   */
+  const updateRecentValues = (value: number, recentArray: number[]) => {
+    recentArray.push(value)
+    if (recentArray.length > antiClusterWindow) {
+      recentArray.shift()
     }
-    
-    if (shouldAudioMatch) {
-      audio = sequence[i - nLevel].audio
-    } else {
-      // Ensure no accidental match while maintaining variety
-      const usedAudios = sequence.slice(Math.max(0, i - nLevel * 2), i).map(s => s.audio)
-      do {
-        audio = Math.floor(Math.random() * (maxAudio + 1))
-      } while (audio === sequence[i - nLevel].audio || 
-               (usedAudios.filter(a => a === audio).length > 1))
-    }
+  }
+
+  // Step 1: Generate initial non-matching sequence (first N items)
+  for (let i = 0; i < nLevel; i++) {
+    const position = generateAntiClusterValue(maxPosition, -1, recentPositions)
+    const audio = generateAntiClusterValue(maxAudio, -1, recentAudios)
     
     sequence.push({
       position,
       audio,
-      timestamp: Date.now() + i * 3000,
+      timestamp: 0 // Will be set during gameplay
     })
+    
+    updateRecentValues(position, recentPositions)
+    updateRecentValues(audio, recentAudios)
   }
+
+  // Step 2: Generate remaining sequence with dynamic, non-predictable approach
+  const remainingLength = length - nLevel
   
+  // Track recent match patterns to break up predictability
+  let recentPositionMatches = 0
+  let recentAudioMatches = 0
+  let consecutiveNonMatches = 0
+  const patternBreakWindow = Math.min(5, Math.ceil(remainingLength / 4))
+  
+  // Dynamic counters for balancing over the entire sequence
+  let totalPositionMatches = 0
+  let totalAudioMatches = 0
+  const targetPositionMatches = Math.round(remainingLength * settings.positionMatchRate)
+  const targetAudioMatches = Math.round(remainingLength * settings.audioMatchRate)
+
+  // Step 3: Generate each stimulus dynamically with pattern-breaking logic
+  for (let i = 0; i < remainingLength; i++) {
+    const currentIndex = nLevel + i
+    const nBackStimulus = sequence[currentIndex - nLevel]
+    const remainingStimuli = remainingLength - i
+    
+    // Calculate dynamic probabilities based on current state and remaining needs
+    let positionMatchProbability = 0
+    let audioMatchProbability = 0
+    
+    // Adjust probability based on how many matches we still need
+    const positionMatchesNeeded = targetPositionMatches - totalPositionMatches
+    const audioMatchesNeeded = targetAudioMatches - totalAudioMatches
+    
+    if (positionMatchesNeeded > 0 && remainingStimuli > 0) {
+      positionMatchProbability = Math.min(0.6, positionMatchesNeeded / remainingStimuli)
+    }
+    if (audioMatchesNeeded > 0 && remainingStimuli > 0) {
+      audioMatchProbability = Math.min(0.6, audioMatchesNeeded / remainingStimuli)
+    }
+    
+    // Pattern-breaking adjustments
+    const recentWindow = Math.min(patternBreakWindow, i)
+    if (recentWindow > 0) {
+      const recentPositionRate = recentPositionMatches / recentWindow
+      const recentAudioRate = recentAudioMatches / recentWindow
+      
+      // If we've had too many matches recently, reduce probability
+      if (recentPositionRate > settings.positionMatchRate * 1.5) {
+        positionMatchProbability *= 0.3
+      }
+      if (recentAudioRate > settings.audioMatchRate * 1.5) {
+        audioMatchProbability *= 0.3
+      }
+      
+      // If we've had too few matches recently, increase probability
+      if (recentPositionRate < settings.positionMatchRate * 0.5 && positionMatchesNeeded > 0) {
+        positionMatchProbability = Math.min(0.7, positionMatchProbability * 2)
+      }
+      if (recentAudioRate < settings.audioMatchRate * 0.5 && audioMatchesNeeded > 0) {
+        audioMatchProbability = Math.min(0.7, audioMatchProbability * 2)
+      }
+    }
+    
+    // Prevent too many consecutive non-matches (engagement killer)
+    if (consecutiveNonMatches >= 4) {
+      if (positionMatchesNeeded > 0) positionMatchProbability = Math.max(0.4, positionMatchProbability)
+      if (audioMatchesNeeded > 0) audioMatchProbability = Math.max(0.4, audioMatchProbability)
+    }
+    
+    // Prevent simultaneous matches too often (but allow occasionally for challenge)
+    if (Math.random() < positionMatchProbability && Math.random() < audioMatchProbability) {
+      // Both would match - randomly pick one (bias towards audio for variety)
+      if (Math.random() < 0.3) {
+        // Allow both (creates challenge)
+      } else if (Math.random() < 0.6) {
+        positionMatchProbability = 0 // Keep audio match
+      } else {
+        audioMatchProbability = 0 // Keep position match
+      }
+    }
+    
+    // Add some randomness to break predictability
+    const randomFactor = 0.7 + Math.random() * 0.6 // 0.7 to 1.3 multiplier
+    positionMatchProbability *= randomFactor
+    audioMatchProbability *= randomFactor
+    
+    // Final decision on matches
+    const willPositionMatch = Math.random() < positionMatchProbability
+    const willAudioMatch = Math.random() < audioMatchProbability
+    
+    let position: number
+    let audio: number
+
+    // Generate position
+    if (willPositionMatch) {
+      position = nBackStimulus.position
+      totalPositionMatches++
+      recentPositionMatches++
+      consecutiveNonMatches = 0
+    } else {
+      // Add lure possibility for more challenge
+      if (nLevel > 1 && Math.random() < settings.lureRate && !willAudioMatch) {
+        const lureOffset = Math.random() < 0.7 ? 1 : 2
+        const lureIndex = currentIndex - nLevel + lureOffset
+        if (lureIndex >= 0 && lureIndex < sequence.length) {
+          position = sequence[lureIndex].position
+        } else {
+          position = generateAntiClusterValue(maxPosition, nBackStimulus.position, recentPositions)
+        }
+      } else {
+        position = generateAntiClusterValue(maxPosition, nBackStimulus.position, recentPositions)
+      }
+    }
+
+    // Generate audio
+    if (willAudioMatch) {
+      audio = nBackStimulus.audio
+      totalAudioMatches++
+      recentAudioMatches++
+      consecutiveNonMatches = 0
+    } else {
+      // Add lure possibility for more challenge
+      if (nLevel > 1 && Math.random() < settings.lureRate && !willPositionMatch) {
+        const lureOffset = Math.random() < 0.7 ? 1 : 2
+        const lureIndex = currentIndex - nLevel + lureOffset
+        if (lureIndex >= 0 && lureIndex < sequence.length) {
+          audio = sequence[lureIndex].audio
+        } else {
+          audio = generateAntiClusterValue(maxAudio, nBackStimulus.audio, recentAudios)
+        }
+      } else {
+        audio = generateAntiClusterValue(maxAudio, nBackStimulus.audio, recentAudios)
+      }
+    }
+    
+    // Track consecutive non-matches
+    if (!willPositionMatch && !willAudioMatch) {
+      consecutiveNonMatches++
+    } else {
+      consecutiveNonMatches = 0
+    }
+    
+    // Update recent match tracking (sliding window)
+    if (i >= patternBreakWindow) {
+      // Remove the influence of the stimulus that's now outside our tracking window
+      const oldIndex = currentIndex - patternBreakWindow
+      const oldNBackIndex = oldIndex - nLevel
+      if (oldNBackIndex >= 0) {
+        const oldStimulus = sequence[oldIndex]
+        const oldNBackStimulus = sequence[oldNBackIndex]
+        if (oldStimulus.position === oldNBackStimulus.position) recentPositionMatches--
+        if (oldStimulus.audio === oldNBackStimulus.audio) recentAudioMatches--
+      }
+    }
+
+    sequence.push({
+      position,
+      audio,
+      timestamp: 0 // Will be set during gameplay
+    })
+
+    updateRecentValues(position, recentPositions)
+    updateRecentValues(audio, recentAudios)
+  }
+
   return sequence
 }
 
-/**
- * Calculate bell curve weight for position in sequence
- * Favors middle positions to avoid clustering at start/end
- */
-const calculateBellCurveWeight = (position: number, length: number): number => {
-  if (length <= 1) return 1
-  
-  // Normalize position to 0-1 range
-  const normalized = position / (length - 1)
-  
-  // Calculate bell curve using gaussian-like function
-  // Peak at 0.5 (middle), tapering toward edges
-  const center = 0.5
-  const spread = 0.3 // Controls width of the bell curve
-  const exponent = -Math.pow(normalized - center, 2) / (2 * Math.pow(spread, 2))
-  
-  // Scale to reasonable range (0.2 to 1.0)
-  return 0.2 + 0.8 * Math.exp(exponent)
-}
-
-/**
- * Checks if a position is valid for placing a match
- */
-const isValidPosition = (
-  pattern: boolean[],
-  position: number,
-  lastPlaced: number,
-  minGap: number,
-  maxConsecutive: number,
-  existingPattern?: boolean[],
-  avoidOverlap = false
-): boolean => {
-  // Check gap constraint
-  if (position - lastPlaced <= minGap) return false
-  
-  // Check overlap constraint
-  if (avoidOverlap && existingPattern?.[position]) return false
-  
-  // Check consecutive constraint
-  let consecutive = 0
-  for (let i = position - 1; i >= 0 && pattern[i]; i--) consecutive++
-  
-  return consecutive < maxConsecutive
-}
-
-/**
- * Places matches in a pattern array with constraints and bell curve bias
- */
-const placeMatches = (
-  length: number,
-  targetMatches: number,
-  maxConsecutive: number,
-  minGap: number,
-  useBellCurve = true,
-  avoidOverlap = false,
-  existingPattern?: boolean[]
-): boolean[] => {
-  const pattern = new Array(length).fill(false)
-  let placed = 0
-  let lastPlaced = -minGap - 1
-  
-  // Create weighted slot pool
-  const slots = Array.from({ length }, (_, i) => ({
-    index: i,
-    weight: useBellCurve ? calculateBellCurveWeight(i, length) : 1
-  }))
-  
-  // Shuffle slots for randomness
-  for (let i = slots.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [slots[i], slots[j]] = [slots[j], slots[i]]
-  }
-
-  // Place matches using weighted probabilities
-  for (const slot of slots) {
-    if (placed >= targetMatches) break
-    
-    if (!isValidPosition(pattern, slot.index, lastPlaced, minGap, maxConsecutive, existingPattern, avoidOverlap)) {
-      continue
-    }
-    
-    // Apply bell curve weighting if enabled
-    const placementProbability = useBellCurve 
-      ? slot.weight * (1.2 - placed / targetMatches)
-      : 1.0
-    
-    if (Math.random() < placementProbability) {
-      pattern[slot.index] = true
-      placed++
-      lastPlaced = slot.index
-    }
-  }
-
-  // Fill remaining matches with best available positions
-  while (placed < targetMatches) {
-    const remainingSlots = slots.filter(slotData => {
-      const slot = slotData.index
-      return !pattern[slot] && 
-        isValidPosition(pattern, slot, lastPlaced, minGap, maxConsecutive, existingPattern, avoidOverlap)
-    })
-    
-    if (remainingSlots.length === 0) break
-    
-    // Choose highest weighted remaining slot
-    const bestSlot = remainingSlots.reduce((best, current) => 
-      current.weight > best.weight ? current : best
-    )
-    
-    pattern[bestSlot.index] = true
-    placed++
-    lastPlaced = bestSlot.index
-  }
-
-  return pattern
-}
-
-/**
- * Creates an engaging pattern with simplified logic
- * Uses bell curve weighted placement to favor middle positions
- */
-const createEngagementPattern = (
-  length: number,
-  positionMatches: number,
-  audioMatches: number,
-  maxConsecutive: number,
-  minGap: number,
-  nLevel: number = 2
-): { position: boolean[], audio: boolean[] } => {
-  // Generate position matches with bell curve bias
-  const position = placeMatches(
-    length,
-    positionMatches,
-    maxConsecutive,
-    minGap,
-    true // useBellCurve
-  )
-
-  // Generate audio matches with some overlap avoidance for lower n-levels
-  const shouldAvoidOverlap = nLevel < 3
-  const audio = placeMatches(
-    length,
-    audioMatches,
-    maxConsecutive,
-    minGap,
-    true, // useBellCurve
-    shouldAvoidOverlap,
-    position
-  )
-
-  return { position, audio }
-}
-
-/**
- * Adds pattern-breaking randomization to prevent predictable sequences
- * Considers overlap benefits for higher n-levels while maintaining engagement
- */
-const addPatternBreaking = (
-  position: boolean[], 
-  audio: boolean[], 
-  targetMatches: { position: number, audio: number },
-  nLevel: number = 2
-): { position: boolean[], audio: boolean[] } => {
-  const length = position.length
-  
-  // Calculate current overlap for decision making
-  const currentOverlap = position.filter((pos, i) => pos && audio[i]).length
-  const targetOverlap = Math.round(Math.min(targetMatches.position, targetMatches.audio) * getOverlapThreshold(nLevel))
-  
-  // Detect overly regular patterns and break them (but preserve beneficial overlaps for higher n-levels)
-  for (let i = 2; i < length - 2; i++) {
-    // Check for alternating patterns
-    if (position[i-2] && !position[i-1] && position[i] && !position[i+1] && position[i+2]) {
-      // For higher n-levels, be more selective about breaking patterns with overlaps
-      const hasOverlap = audio[i]
-      if (!hasOverlap || nLevel < 3 || Math.random() < 0.6) {
-        position[i] = false
-      }
-    }
-    
-    if (audio[i-2] && !audio[i-1] && audio[i] && !audio[i+1] && audio[i+2]) {
-      const hasOverlap = position[i]
-      if (!hasOverlap || nLevel < 3 || Math.random() < 0.6) {
-        audio[i] = false
-      }
-    }
-    
-    // Check for too-regular spacing (every 3rd position) - be more lenient with overlaps
-    if (i % 3 === 0 && position[i] && position[i-3] && (i+3 < length && position[i+3])) {
-      const hasOverlap = audio[i]
-      // Keep overlaps for higher n-levels to maintain difficulty
-      if (!hasOverlap || nLevel < 4) {
-        if (Math.random() < 0.5) {
-          position[i] = false
-          // Try to place it nearby without creating new overlap conflicts
-          for (let j of [i-1, i+1, i-2, i+2]) {
-            if (j >= 0 && j < length && !position[j]) {
-              // Only place if it doesn't create unwanted patterns
-              const wouldCreateOverlap = audio[j]
-              if (!wouldCreateOverlap || currentOverlap < targetOverlap) {
-                position[j] = true
-                break
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  
-  // Ensure we still have the right number of matches after pattern breaking
-  // But be smarter about preserving beneficial overlaps for higher n-levels
-  const actualPositionMatches = position.filter(Boolean).length
-  const actualAudioMatches = audio.filter(Boolean).length
-  const actualOverlap = position.filter((pos, i) => pos && audio[i]).length
-  
-  // Add back matches if we removed too many, considering overlap strategy
-  if (actualPositionMatches < targetMatches.position) {
-    const deficit = targetMatches.position - actualPositionMatches
-    const availableSlots = position.map((val, idx) => (!val) ? idx : -1)
-      .filter(idx => idx !== -1)
-    
-    for (let i = 0; i < Math.min(deficit, availableSlots.length); i++) {
-      // Prefer slots that create beneficial overlaps for higher n-levels
-      let bestSlot = availableSlots[0]
-      if (nLevel >= 3 && actualOverlap < targetOverlap) {
-        const overlapSlot = availableSlots.find(slot => audio[slot])
-        if (overlapSlot !== undefined) {
-          bestSlot = overlapSlot
-        }
-      }
-      
-      const randomSlot = Math.random() < 0.7 ? bestSlot : availableSlots[Math.floor(Math.random() * availableSlots.length)]
-      position[randomSlot] = true
-      availableSlots.splice(availableSlots.indexOf(randomSlot), 1)
-    }
-  }
-  
-  if (actualAudioMatches < targetMatches.audio) {
-    const deficit = targetMatches.audio - actualAudioMatches
-    const availableSlots = audio.map((val, idx) => (!val) ? idx : -1)
-      .filter(idx => idx !== -1)
-    
-    for (let i = 0; i < Math.min(deficit, availableSlots.length); i++) {
-      // Prefer slots that create beneficial overlaps for higher n-levels
-      let bestSlot = availableSlots[0]
-      if (nLevel >= 3 && actualOverlap < targetOverlap) {
-        const overlapSlot = availableSlots.find(slot => position[slot])
-        if (overlapSlot !== undefined) {
-          bestSlot = overlapSlot
-        }
-      }
-      
-      const randomSlot = Math.random() < 0.7 ? bestSlot : availableSlots[Math.floor(Math.random() * availableSlots.length)]
-      audio[randomSlot] = true
-      availableSlots.splice(availableSlots.indexOf(randomSlot), 1)
-    }
-  }
-  
-  return { position, audio }
-}
 
 /**
  * Calculates if there should be a match for position at current index

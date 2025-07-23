@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { GameState, GameSettings, GameSequence, ResponseType } from '../types/game'
 import { 
-  generateEngagingSequence, 
+  generateGameSequence, 
   createPerformanceSnapshot, 
   analyzeAdaptiveTriggers, 
   type PerformanceSnapshot 
@@ -90,7 +90,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const difficulty = state.nLevel <= 2 ? 'easy' : state.nLevel <= 4 ? 'medium' : 'hard'
     
     // Use static engaging sequence
-    const sequence = generateEngagingSequence(
+    const sequence = generateGameSequence(
       state.settings.totalRounds + state.nLevel,
       state.settings.gridSize,
       state.nLevel,
